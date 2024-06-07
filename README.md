@@ -6,9 +6,7 @@
 
 - **AST Parsing**: Leverage the official [PowerShell source code](https://github.com/PowerShell/PowerShell) parser to generate an Abstract Syntax Tree (AST) from obfuscated scripts.
 - **Node Analysis**: Traverses the AST to identify and address common obfuscation patterns such as string encoding, concatenation, and variable renaming.
-- **Partial evaluation & semantic simplification**: Current techniques include:
-  - **String Decryption**: Decodes obfuscated strings and replaces them with their cleartext equivalents.
-  - **Variable Resolution**: Resolves obfuscated variable names to their original or more meaningful names.
+- **Partial evaluation**: Current techniques include:
   - **Expression Simplification**: Simplifies complex expressions to their basic forms.
   - **Command Resolution**: Replaces encoded or obfuscated command invocations with their original commands.
 - **Reconstruction**: Reconstructs the script from the modified AST, producing a cleaned and readable version of the original script.
