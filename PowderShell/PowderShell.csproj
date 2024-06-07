@@ -10,4 +10,32 @@
     <PackageReference Include="Microsoft.PowerShell.SDK" Version="7.4.2" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="GeneratePSCommands.tt">
+      <LastGenOutput>GeneratePSCommands.cs</LastGenOutput>
+      <Generator>TextTemplatingFileGenerator</Generator>
+    </None>
+    <None Update="GeneratePSTypeNamespaceHierarchy.tt">
+      <Generator>TextTemplatingFileGenerator</Generator>
+      <LastGenOutput>GeneratePSTypeNamespaceHierarchy.cs</LastGenOutput>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Service Include="{508349b6-6b84-4df5-91f0-309beebad82d}" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Update="GeneratePSCommands.cs">
+      <DependentUpon>GeneratePSCommands.tt</DependentUpon>
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+    </Compile>
+    <Compile Update="GeneratePSTypeNamespaceHierarchy.cs">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>GeneratePSTypeNamespaceHierarchy.tt</DependentUpon>
+    </Compile>
+  </ItemGroup>
+
 </Project>

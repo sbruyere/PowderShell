@@ -12,6 +12,7 @@ namespace PowderShell.CLI
                .WithParsed(opts => RunOptionsAndReturnExitCode(opts))
                .WithNotParsed(errs => HandleParseError(errs));
 
+            
         }
 
         private static void HandleParseError(IEnumerable<Error> errs)
@@ -29,7 +30,7 @@ namespace PowderShell.CLI
                     string result = DeobfuscateContent(fileContent);
 
                     if (!string.IsNullOrWhiteSpace(opts.Output))
-                        File.AppendAllText(opts.Output, result);
+                        File.WriteAllText(opts.Output, result);
                     else
                         Console.Out.Write(result);
 
@@ -42,7 +43,7 @@ namespace PowderShell.CLI
                 string result = DeobfuscateContent(fileContent);
 
                 if (!string.IsNullOrWhiteSpace(opts.Output))
-                    File.AppendAllText(opts.Output, result);
+                    File.WriteAllText(opts.Output, result);
                 else
                     Console.Out.Write(result);
             }

@@ -1,4 +1,5 @@
-﻿using System.Management.Automation;
+﻿using System.Collections.Immutable;
+using System.Management.Automation;
 using System.Management.Automation.Language;
 using System.Text;
 
@@ -66,9 +67,9 @@ namespace PowderShell
 
             string previousToken = "";
 
-            Dictionary<string, PSObject> psCommands = CollectPSCommands();
-            Dictionary<string, PSObject> psNamespaces = CollectPSNameSpaces();
-            Dictionary<string, PSObject> psTypes = CollectPSTypes();
+            var psTypes = PSSanitizerCollections.PSTypes;
+            var psCommands = PSSanitizerCollections.PSCommands;
+
 
             foreach (var nn in tokens)
             {
@@ -113,14 +114,16 @@ namespace PowderShell
                         break;
                     case PSTokenType.Type:
 
-                        var lContent = extContent.ToLower();
-                         newContent = extContent;
-                        if (psTypes.ContainsKey(lContent))
-                        {
-                            newContent = psTypes[lContent].ToString();
-                        }
+                        //var lContent = extContent.ToLower();
+                        //newContent = extContent;
 
-                        code.Append(newContent);
+
+                        //if (psTypes.ContainsKey(lContent))
+                        //{
+                        //    newContent = psTypes[lContent].ToString();
+                        //}
+
+                        code.Append(psTypes.GetFixedCaseFullname(extContent));
 
                         break;
                     case PSTokenType.Attribute:
@@ -157,88 +160,6 @@ namespace PowderShell
                 return null;
         }
 
-        private static Dictionary<string, PSObject> CollectPSCommands()
-        {
-            var psCommands = new Dictionary<string, PSObject>();
-            using (var ps = PowerShell.Create())
-            {
-                ps.AddScript("Get-Command");
-                var results = ps.Invoke();
-                foreach (PSObject result2 in results)
-                {
-                    string name = result2.ToString().ToLower();
-
-                    if (!psCommands.ContainsKey(name))
-                        psCommands.Add(name, result2);
-                }
-            }
-
-            return psCommands;
-        }
-
-        private static Dictionary<string, PSObject> CollectPSNameSpaces()
-        {
-            var psCommands = new Dictionary<string, PSObject>();
-            using (var ps = PowerShell.Create())
-            {
-                ps.AddScript(@"
-                [AppDomain]::CurrentDomain.GetAssemblies() |
-                ForEach-Object {
-                    $_.GetTypes() | ForEach-Object {
-                        $_.Namespace
-                    }
-                } | Sort-Object -Unique
-                ");
-                var results = ps.Invoke();
-                foreach (PSObject result2 in results)
-                {
-                    string name = result2.ToString().ToLower();
-
-                    if (!psCommands.ContainsKey(name))
-                        psCommands.Add(name, result2);
-                }
-            }
-
-            return psCommands;
-        }
-
-        private static Dictionary<string, PSObject> CollectPSTypes()
-        {
-            var psCommands = new Dictionary<string, PSObject>();
-            using (var ps = PowerShell.Create())
-            {
-                ps.AddScript(@"
-                [AppDomain]::CurrentDomain.GetAssemblies() |
-                ForEach-Object {
-                    $_.GetTypes() | ForEach-Object {
-                        $_.FullName
-                    }
-                } | Sort-Object -Unique
-            ");
-
-                var results = ps.Invoke();
-                foreach (PSObject result2 in results)
-                {
-                    string formatedName = result2.ToString();
-                    string name = "[" + formatedName.ToLower() + "]";
-
-                    foreach (var defNameSpace in defaultNamespaces)
-                    {
-                        if (formatedName.StartsWith(defNameSpace))
-                        {
-                            string addName = formatedName.Substring(defNameSpace.Length+1);
-                            if (!psCommands.ContainsKey("[" + addName.ToLower() + "]"))
-                                psCommands.Add("[" + addName.ToLower() + "]", "[" + addName + "]");
-                        }
-                    }
-
-                    if (!psCommands.ContainsKey(name))
-                        psCommands.Add(name, "[" + result2 + "]");
-                }
-            }
-
-            return psCommands;
-        }
 
         public static string GetIndent(ref int num)
         {
@@ -246,5 +167,95 @@ namespace PowderShell
 
             return new string(' ', num);
         }
+
+        //private static SortedDictionary<string, string> CollectPSCommands()
+        //{
+        //    return new SortedDictionary<string, string>();
+        //    var psCommands = new SortedDictionary<string, string>();
+        //    using (var ps = PowerShell.Create())
+        //    {
+        //        ps.AddScript("Get-Command");
+        //        var results = ps.Invoke();
+        //        foreach (PSObject result in results)
+        //        {
+        //            string name = result.ToString().ToLower();
+
+        //            if (!psCommands.ContainsKey(name))
+        //                psCommands.Add(name, result.ToString());
+        //        }
+        //    }
+
+        //    return psCommands;
+        //}
+
+        private static SortedDictionary<string, string> CollectPSNameSpaces()
+        {
+            var psCommands = new SortedDictionary<string, string>();
+            using (var ps = PowerShell.Create())
+            {
+                ps.AddScript(@"
+            [AppDomain]::CurrentDomain.GetAssemblies() |
+            ForEach-Object {
+                $_.GetTypes() | ForEach-Object {
+                    $_.Namespace
+                }
+            } | Sort-Object -Unique
+            ");
+                var results = ps.Invoke();
+                foreach (PSObject result in results)
+                {
+                    string name = result.ToString().ToLower();
+
+                    if (!psCommands.ContainsKey(name))
+                        psCommands.Add(name, result.ToString());
+                }
+            }
+
+            return psCommands;
+        }
+
+
+        //private static NestedNamespaceAtom CollectPSTypes()
+        //{
+
+        //    NestedNamespaceAtom rootAtom = new NestedNamespaceAtom();
+
+        //    using (var ps = PowerShell.Create())
+        //    {
+        //        ps.AddScript(@"
+        //            [AppDomain]::CurrentDomain.GetAssemblies() |
+        //            ForEach-Object {
+        //                $_.GetTypes() | Where-Object { $_.IsPublic -and $_.FullName } | ForEach-Object {
+        //                    $_.FullName
+        //                }
+        //            } | Sort-Object -Unique
+        //            ");
+
+        //        var results = ps.Invoke();
+        //        foreach (PSObject result in results)
+        //        {
+        //            string formatedName = result.ToString();
+
+        //            rootAtom.AddFullName(formatedName);
+
+        //            string name = "[" + formatedName.ToLower() + "]";
+
+        //            foreach (var defNameSpace in defaultNamespaces)
+        //            {
+        //                if (formatedName.StartsWith(defNameSpace))
+        //                {
+        //                    string addName = formatedName.Substring(defNameSpace.Length + 1);
+
+
+        //                    rootAtom.AddFullName(addName);
+
+        //                }
+        //            }
+
+        //        }
+        //    }
+
+        //    return rootAtom;
+        //}
     }
 }
