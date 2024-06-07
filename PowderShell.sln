@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.10.34928.147
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PowderShell", "PowderShell\PowderShell.csproj", "{91272C58-F29F-4062-B7CA-9B2295EFCC82}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PowderShell.Console", "PowderShell.Console\PowderShell.Console.csproj", "{B337E6AA-6F11-4799-A56A-198DB6C85A3C}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{91272C58-F29F-4062-B7CA-9B2295EFCC82}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{91272C58-F29F-4062-B7CA-9B2295EFCC82}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{91272C58-F29F-4062-B7CA-9B2295EFCC82}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{91272C58-F29F-4062-B7CA-9B2295EFCC82}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B337E6AA-6F11-4799-A56A-198DB6C85A3C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B337E6AA-6F11-4799-A56A-198DB6C85A3C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B337E6AA-6F11-4799-A56A-198DB6C85A3C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B337E6AA-6F11-4799-A56A-198DB6C85A3C}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {17D641A8-38CE-400C-BE78-CEEC0B4BF704}
+	EndGlobalSection
+EndGlobal
