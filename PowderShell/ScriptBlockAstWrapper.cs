@@ -1,4 +1,5 @@
-﻿using System.Management.Automation;
+﻿using Microsoft.CodeAnalysis.CSharp.Syntax;
+using System.Management.Automation;
 using System.Management.Automation.Language;
 using System.Text;
 
@@ -12,7 +13,6 @@ namespace PowderShell
     [Obsolete]
     public class AstWrapper
     {
-       
         public static string GetOperatorStrFrom(TokenKind tokenKind)
         {
             var index = GlobalCollections.s_operatorTokenKind.IndexOf(tokenKind);
@@ -212,6 +212,50 @@ namespace PowderShell
         }
     }
 
+    public class ForStatementAstWrapper : LoopStatementAstWrapper
+    {
+        public PipelineBaseAstWrapper Initializer { get; }
+        public PipelineBaseAstWrapper Iterator { get; }
+
+        public ForStatementAstWrapper(ForStatementAst ast)
+            : base(ast)
+        {
+            Initializer = PipelineBaseAstWrapper.Get(ast.Initializer);
+            Iterator = PipelineBaseAstWrapper.Get(ast.Iterator);
+        }
+
+        public override string ToString()
+        {
+            StringBuilder result = new StringBuilder();
+
+            result.AppendLine();
+            result.Append("for (");
+
+            if (Initializer != null)
+            {
+                result.Append(Initializer.ToString());
+            }
+
+            result.Append("; ");
+
+            if (Condition != null)
+            {
+                result.Append(Condition.ToString());
+            }
+
+            result.Append("; ");
+
+            if (Iterator != null)
+            {
+                result.Append(Iterator.ToString());
+            }
+
+            result.Append(") ").Append(Body.ToString());
+            result.AppendLine();
+
+            return result.ToString();
+        }
+    }
 
     public class ForEachStatementAstWrapper : LoopStatementAstWrapper
     {
@@ -233,6 +277,7 @@ namespace PowderShell
         {
             StringBuilder result = new StringBuilder();
 
+            result.AppendLine();
             result.Append("foreach ");
 
             if (Flags.HasFlag(ForEachFlags.Parallel))
@@ -251,10 +296,87 @@ namespace PowderShell
                   .Append(") ")
                   .Append(Body.ToString());
 
+            result.AppendLine();
+
             return result.ToString();
         }
     }
 
+    public class DoWhileStatementAstWrapper : LoopStatementAstWrapper
+    {
+        public PipelineBaseAstWrapper Condition { get; }
+
+        public DoWhileStatementAstWrapper(DoWhileStatementAst ast)
+            : base(ast)
+        {
+            Condition = PipelineBaseAstWrapper.Get(ast.Condition);
+        }
+
+        public override string ToString()
+        {
+            StringBuilder result = new StringBuilder();
+
+
+            result
+                .AppendLine()
+                .Append("do ")
+                .Append(Body.ToString())
+                .Append(" while (").Append(Condition.ToString()).Append(")")
+                .AppendLine();
+
+            return result.ToString();
+        }
+    }
+
+
+    public class DoUntilStatementAstWrapper : LoopStatementAstWrapper
+    {
+        public PipelineBaseAstWrapper Condition { get; }
+
+        public DoUntilStatementAstWrapper(DoUntilStatementAst ast)
+            : base(ast)
+        {
+            Condition = PipelineBaseAstWrapper.Get(ast.Condition);
+        }
+
+        public override string ToString()
+        {
+            StringBuilder result = new StringBuilder();
+
+            result
+                .AppendLine()
+                .Append("do ")
+                .Append(Body.ToString())
+                .Append(" until (").Append(Condition.ToString()).Append(")")
+                .AppendLine();
+
+            return result.ToString();
+        }
+    }
+
+    public class WhileStatementAstWrapper : LoopStatementAstWrapper
+    {
+        public PipelineBaseAstWrapper Condition { get; }
+
+        public WhileStatementAstWrapper(WhileStatementAst ast)
+            : base(ast)
+        {
+            Condition = PipelineBaseAstWrapper.Get(ast.Condition);
+        }
+
+        public override string ToString()
+        {
+            StringBuilder result = new StringBuilder();
+
+            result
+                .AppendLine()
+                .Append("while (").Append(Condition.ToString()).Append(") ")
+                .Append(Body.ToString())
+                .AppendLine();
+
+            return result.ToString();
+        }
+    }
 
     public class LoopStatementAstWrapper : LabeledStatementAstWrapper
     {
@@ -272,16 +394,16 @@ namespace PowderShell
                 return new ForEachStatementAstWrapper(ast as ForEachStatementAst);
 
             if (ast is ForStatementAst)
-                return new LoopStatementAstWrapper(ast);
+                return new ForStatementAstWrapper(ast as ForStatementAst);
 
             if (ast is DoWhileStatementAst)
-                return new LoopStatementAstWrapper(ast);
+                return new DoWhileStatementAstWrapper(ast as DoWhileStatementAst);
 
             if (ast is DoUntilStatementAst)
-                return new LoopStatementAstWrapper(ast);
+                return new DoUntilStatementAstWrapper(ast as DoUntilStatementAst);
 
             if (ast is WhileStatementAst)
-                return new LoopStatementAstWrapper(ast);
+                return new WhileStatementAstWrapper(ast as WhileStatementAst);
 
             return new LoopStatementAstWrapper(ast);
         }
@@ -380,6 +502,41 @@ namespace PowderShell
 
     }
 
+    public class ParenExpressionAstWrapper : ExpressionAstWrapper
+    {
+        public PipelineBaseAstWrapper Pipeline { get; }
+
+        public ParenExpressionAstWrapper(ParenExpressionAst ast)
+            : base(ast)
+        {
+            Pipeline = PipelineBaseAstWrapper.Get(ast.Pipeline);
+        }
+
+        public override string ToString()
+        {
+            return $"({Pipeline})";
+        }
+    }
+
+    public class BinaryExpressionAstWrapper : ExpressionAstWrapper
+    {
+        public BinaryExpressionAstWrapper(BinaryExpressionAst ast) : base(ast)
+        {
+            Operator = ast.Operator;
+            Right = ExpressionAstWrapper.Get(ast.Right);
+            Left = ExpressionAstWrapper.Get(ast.Left);
+            
+        }
+
+        public TokenKind Operator { get; }
+        public ExpressionAstWrapper Right { get; }
+        public ExpressionAstWrapper Left { get; }
+
+        public override string ToString()
+        {
+            return $"{Left} {Operator.ToString().ToLower()} {Right}";
+        }
+    }
 
     public class ExpressionAstWrapper : CommandElementAstWrapper
     {
@@ -399,7 +556,7 @@ namespace PowderShell
             if (v is ErrorExpressionAst) return new ExpressionAstWrapper(v);
 
             if (v is UnaryExpressionAst) return new ExpressionAstWrapper(v);
-            if (v is BinaryExpressionAst) return new ExpressionAstWrapper(v);
+            if (v is BinaryExpressionAst) return new BinaryExpressionAstWrapper(v as BinaryExpressionAst);
             if (v is TernaryExpressionAst) return new ExpressionAstWrapper(v);
 
             if (v is AttributedExpressionAst) return new ExpressionAstWrapper(v);
@@ -414,7 +571,7 @@ namespace PowderShell
             if (v is ArrayLiteralAst) return new ExpressionAstWrapper(v);
             if (v is HashtableAst) return new ExpressionAstWrapper(v);
             if (v is ArrayExpressionAst) return new ExpressionAstWrapper(v);
-            if (v is ParenExpressionAst) return new ExpressionAstWrapper(v);
+            if (v is ParenExpressionAst) return new ParenExpressionAstWrapper(v as ParenExpressionAst);
             if (v is SubExpressionAst) return new ExpressionAstWrapper(v);
             if (v is UsingExpressionAst) return new ExpressionAstWrapper(v);
             if (v is IndexExpressionAst) return new ExpressionAstWrapper(v);
