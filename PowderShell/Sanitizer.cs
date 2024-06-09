@@ -67,8 +67,8 @@ namespace PowderShell
 
             string previousToken = "";
 
-            var psTypes = PSSanitizerCollections.PSTypes;
-            var psCommands = PSSanitizerCollections.PSCommands;
+            var psTypes = GlobalCollections.PSTypes;
+            var psCommands = GlobalCollections.PSCommands;
 
 
             foreach (var nn in tokens)

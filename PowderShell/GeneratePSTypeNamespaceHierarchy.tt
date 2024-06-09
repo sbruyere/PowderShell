@@ -16,7 +16,7 @@
 
 namespace PowderShell
 {
-    public partial class PSSanitizerCollections
+    public partial class GlobalCollections
     {
         public static readonly NestedNamespaceAtom PSTypes =
         

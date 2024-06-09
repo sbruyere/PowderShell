@@ -1,72 +1,21 @@
-﻿using System.Management.Automation.Language;
+﻿using System.Management.Automation;
+using System.Management.Automation.Language;
 using System.Text;
 
 namespace PowderShell
 {
+    public static class PowderShellOptions
+    {
+        public static bool TagUnmanagedAst { get; set; } = true;
+    }
+
     [Obsolete]
     public class AstWrapper
     {
-
-        public static readonly List<TokenKind> s_operatorTokenKind = new List<TokenKind> {
-        /*1*/   TokenKind.Bnot,         TokenKind.Not,          TokenKind.Ieq,          TokenKind.Ieq,            /*1*/
-        /*2*/   TokenKind.Ceq,          TokenKind.Ine,          TokenKind.Ine,          TokenKind.Cne,            /*2*/
-        /*3*/   TokenKind.Ige,          TokenKind.Ige,          TokenKind.Cge,          TokenKind.Igt,            /*3*/
-        /*4*/   TokenKind.Igt,          TokenKind.Cgt,          TokenKind.Ilt,          TokenKind.Ilt,            /*4*/
-        /*5*/   TokenKind.Clt,          TokenKind.Ile,          TokenKind.Ile,          TokenKind.Cle,            /*5*/
-        /*6*/   TokenKind.Ilike,        TokenKind.Ilike,        TokenKind.Clike,        TokenKind.Inotlike,       /*6*/
-        /*7*/   TokenKind.Inotlike,     TokenKind.Cnotlike,     TokenKind.Imatch,       TokenKind.Imatch,         /*7*/
-        /*8*/   TokenKind.Cmatch,       TokenKind.Inotmatch,    TokenKind.Inotmatch,    TokenKind.Cnotmatch,      /*8*/
-        /*9*/   TokenKind.Ireplace,     TokenKind.Ireplace,     TokenKind.Creplace,     TokenKind.Icontains,      /*9*/
-        /*10*/  TokenKind.Icontains,    TokenKind.Ccontains,    TokenKind.Inotcontains, TokenKind.Inotcontains,   /*10*/
-        /*11*/  TokenKind.Cnotcontains, TokenKind.Iin,          TokenKind.Iin,          TokenKind.Cin,            /*11*/
-        /*12*/  TokenKind.Inotin,       TokenKind.Inotin,       TokenKind.Cnotin,       TokenKind.Isplit,         /*12*/
-        /*13*/  TokenKind.Isplit,       TokenKind.Csplit,       TokenKind.IsNot,        TokenKind.Is,             /*13*/
-        /*14*/  TokenKind.As,           TokenKind.Format,       TokenKind.And,          TokenKind.Band,           /*14*/
-        /*15*/  TokenKind.Or,           TokenKind.Bor,          TokenKind.Xor,          TokenKind.Bxor,           /*15*/
-        /*16*/  TokenKind.Join,         TokenKind.Shl,          TokenKind.Shr,          TokenKind.Equals                          /*16*/
-        };
-
-        public static readonly string[] _operatorText = new string[] {
-        /*1*/   "bnot",                 "not",                  "eq",                   "ieq",                    /*1*/
-        /*2*/   "ceq",                  "ne",                   "ine",                  "cne",                    /*2*/
-        /*3*/   "ge",                   "ige",                  "cge",                  "gt",                     /*3*/
-        /*4*/   "igt",                  "cgt",                  "lt",                   "ilt",                    /*4*/
-        /*5*/   "clt",                  "le",                   "ile",                  "cle",                    /*5*/
-        /*6*/   "like",                 "ilike",                "clike",                "notlike",                /*6*/
-        /*7*/   "inotlike",             "cnotlike",             "match",                "imatch",                 /*7*/
-        /*8*/   "cmatch",               "notmatch",             "inotmatch",            "cnotmatch",              /*8*/
-        /*9*/   "replace",              "ireplace",             "creplace",             "contains",               /*9*/
-        /*10*/  "icontains",            "ccontains",            "notcontains",          "inotcontains",           /*10*/
-        /*11*/  "cnotcontains",         "in",                   "iin",                  "cin",                    /*11*/
-        /*12*/  "notin",                "inotin",               "cnotin",               "split",                  /*12*/
-        /*13*/  "isplit",               "csplit",               "isnot",                "is",                     /*13*/
-        /*14*/  "as",                   "f",                    "and",                  "band",                   /*14*/
-        /*15*/  "or",                   "bor",                  "xor",                  "bxor",                   /*15*/
-        /*16*/  "join",                 "shl",                  "shr",                  "eq"                          /*16*/
-        };
-
-        public static readonly string[] _operatorSymbols = new string[] {
-                /*1*/   "-bnot",     "-not",     "==",      "==",       /*1*/
-                /*2*/   "==",        "!=",       "!=",      "!=",       /*2*/
-                /*3*/   ">=",        ">=",       ">=",      ">",        /*3*/
-                /*4*/   ">",         ">",        "<",       "<",        /*4*/
-                /*5*/   "<",         "<=",       "<=",      "<=",       /*5*/
-                /*6*/   "-like",     "-like",    "-like",   "-notlike", /*6*/
-                /*7*/   "-notlike",  "-notlike", "-match",  "-match",   /*7*/
-                /*8*/   "-match",    "-notmatch","-notmatch","-notmatch",/*8*/
-                /*9*/   "-replace",  "-replace", "-replace","-contains",/*9*/
-                /*10*/  "-contains", "-contains","-notcontains","-notcontains",/*10*/
-                /*11*/  "-notcontains","-in",    "-in",     "-in",      /*11*/
-                /*12*/  "-notin",    "-notin",   "-notin",  "-split",   /*12*/
-                /*13*/  "-split",    "-split",   "-isnot",  "-is",      /*13*/
-                /*14*/  "-as",       "-f",       "-and",    "-band",    /*14*/
-                /*15*/  "-or",       "-bor",     "-xor",    "-bxor",    /*15*/
-                /*16*/  "-join",     "-shl",     "-shr",     "="           /*16*/
-            };
-
+       
         public static string GetOperatorStrFrom(TokenKind tokenKind)
         {
-            var index = s_operatorTokenKind.IndexOf(tokenKind);
+            var index = GlobalCollections.s_operatorTokenKind.IndexOf(tokenKind);
             if (index == -1)
             {
                 return tokenKind.ToString();
@@ -74,7 +23,7 @@ namespace PowderShell
             else
             { 
             
-                return _operatorSymbols[index];
+                return GlobalCollections._operatorSymbols[index];
             }
         }
 
@@ -87,7 +36,11 @@ namespace PowderShell
 
         public override string ToString()
         {
-            return BaseAst.ToString();
+            if (PowderShellOptions.TagUnmanagedAst)
+                return $"[Unmanaged({BaseAst.GetType().Name})] {BaseAst}";
+            else
+                return $"{BaseAst}";
+
         }
     }
 
@@ -103,11 +56,6 @@ namespace PowderShell
             : base(ast)
         {
             BaseAst = ast ?? throw new ArgumentNullException(nameof(ast));
-        }
-
-        public override string ToString()
-        {
-            return /*$"[UnManaged:{BaseAst.GetType().Name}] " +*/ BaseAst.ToString();
         }
     }
 
@@ -194,7 +142,7 @@ namespace PowderShell
     {
         public object Value { get; }
 
-        public ConstantExpressionAstWrapper(ConstantExpressionAst ast)
+        internal ConstantExpressionAstWrapper(ConstantExpressionAst ast)
             : base(ast)
         {
             Value = ast.Value;
@@ -214,6 +162,225 @@ namespace PowderShell
         }
     }
 
+    public class ContinueStatementAstWrapper : StatementAstWrapper
+    {
+
+        public ContinueStatementAstWrapper(ContinueStatementAst ast)
+            : base(ast)
+        {
+            if (ast.Label != null)
+            Label = ExpressionAstWrapper.Get(ast.Label);
+        }
+
+        public ExpressionAstWrapper Label { get; }
+
+        public override string ToString()
+        {
+            if (Label != null)
+            {
+                return $"continue {Label}";
+            }
+            else
+            {
+                return "continue";
+            }
+        }
+    }
+
+    public class ThrowStatementAstWrapper : StatementAstWrapper
+    {
+        public bool IsRethrow { get; }
+        public PipelineBaseAstWrapper Pipeline { get; }
+
+        public ThrowStatementAstWrapper(ThrowStatementAst ast)
+            : base(ast)
+        {
+            IsRethrow = ast.IsRethrow;
+            Pipeline = PipelineBaseAstWrapper.Get(ast.Pipeline);
+        }
+
+        public override string ToString()
+        {
+            if (IsRethrow)
+            {
+                return "throw";
+            }
+            else
+            {
+                return $"throw {Pipeline}";
+            }
+        }
+    }
+
+
+    public class ForEachStatementAstWrapper : LoopStatementAstWrapper
+    {
+        public ExpressionAstWrapper ThrottleLimit { get; }
+        public VariableExpressionAstWrapper Variable { get; }
+        public ForEachFlags Flags { get; }
+
+        public ForEachStatementAstWrapper(ForEachStatementAst ast)
+            : base(ast)
+        {
+            if (ast.ThrottleLimit != null)
+            ThrottleLimit = ExpressionAstWrapper.Get(ast.ThrottleLimit);
+            if (ast.Variable != null)
+                Variable = new VariableExpressionAstWrapper(ast.Variable);
+            Flags = ast.Flags;
+        }
+
+        public override string ToString()
+        {
+            StringBuilder result = new StringBuilder();
+
+            result.Append("foreach ");
+
+            if (Flags.HasFlag(ForEachFlags.Parallel))
+            {
+                result.Append("-Parallel ");
+            }
+
+            result.Append("(");
+
+            if (ThrottleLimit != null)
+            {
+                result.Append("ThrottleLimit = ").Append(ThrottleLimit).Append("; ");
+            }
+
+            result.Append(Variable).Append(" in ").Append(Condition)
+                  .Append(") ")
+                  .Append(Body.ToString());
+
+            return result.ToString();
+        }
+    }
+
+
+    public class LoopStatementAstWrapper : LabeledStatementAstWrapper
+    {
+        public LoopStatementAstWrapper(LoopStatementAst ast)
+            : base(ast)
+        {
+            Body = new StatementBlockAstWrapper(ast.Body);
+        }
+
+        public StatementBlockAstWrapper Body { get; }
+
+        public static LoopStatementAstWrapper Get(LoopStatementAst ast)
+        {
+            if (ast is ForEachStatementAst)
+                return new ForEachStatementAstWrapper(ast as ForEachStatementAst);
+
+            if (ast is ForStatementAst)
+                return new LoopStatementAstWrapper(ast);
+
+            if (ast is DoWhileStatementAst)
+                return new LoopStatementAstWrapper(ast);
+
+            if (ast is DoUntilStatementAst)
+                return new LoopStatementAstWrapper(ast);
+
+            if (ast is WhileStatementAst)
+                return new LoopStatementAstWrapper(ast);
+
+            return new LoopStatementAstWrapper(ast);
+        }
+    }
+
+    public class LabeledStatementAstWrapper : StatementAstWrapper
+    {
+        public string Label { get; }
+        public PipelineBaseAstWrapper Condition { get; }
+
+        public LabeledStatementAstWrapper(LabeledStatementAst ast)
+            : base(ast)
+        {
+            Label = ast.Label;
+            Condition = PipelineBaseAstWrapper.Get(ast.Condition);
+        }
+
+        public static LabeledStatementAstWrapper Get(LabeledStatementAst ast)
+        {
+            if (ast is LoopStatementAst)
+                return LoopStatementAstWrapper.Get(ast as LoopStatementAst);
+
+            if (ast is SwitchStatementAst)
+                return new LabeledStatementAstWrapper(ast);
+
+            return new LabeledStatementAstWrapper(ast);
+        }
+    }
+
+    public class TrapStatementAstWrapper : StatementAstWrapper
+    {
+        public TypeConstraintAstWrapper TrapType { get; }
+        public StatementBlockAstWrapper Body { get; }
+
+        public TrapStatementAstWrapper(TrapStatementAst ast)
+            : base(ast)
+        {
+            TrapType = new TypeConstraintAstWrapper(ast.TrapType);
+            Body = new StatementBlockAstWrapper(ast.Body);
+        }
+
+        public override string ToString()
+        {
+            StringBuilder result = new StringBuilder();
+            result
+                .AppendLine()
+                .AppendLine($"trap {TrapType}")
+                .AppendLine(Body.ToString());
+
+            return result.ToString();
+        }
+    }
+
+    public class ScriptBlockExpressionAstWrapper : ExpressionAstWrapper
+    {
+        public ScriptBlockAstWrapper ScriptBlock { get; }
+
+        public ScriptBlockExpressionAstWrapper(ScriptBlockExpressionAst ast)
+            : base(ast)
+        {
+            ScriptBlock = new ScriptBlockAstWrapper(ast.ScriptBlock);
+        }
+
+        public override string ToString()
+        {
+            return ScriptBlock.ToString();
+        }
+
+    }
+
+
+    public class VariableExpressionAstWrapper : ExpressionAstWrapper
+    {
+        public bool Splatted { get; }
+        public VariablePath VariablePath { get; }
+
+        public VariableExpressionAstWrapper(VariableExpressionAst ast)
+            : base(ast)
+        {
+            Splatted = ast.Splatted;
+            VariablePath = ast.VariablePath;
+        }
+
+
+        public override string ToString()
+        {
+            if (Splatted)
+            {
+                return $"@{VariablePath}";
+            }
+            else
+            {
+                return $"${VariablePath}";
+            }
+        }
+
+    }
+
+
     public class ExpressionAstWrapper : CommandElementAstWrapper
     {
         public ITypeName TypeName { get; }
@@ -228,13 +395,13 @@ namespace PowderShell
 
         internal static ExpressionAstWrapper Get(ExpressionAst v)
         {
-            if (v is VariableExpressionAst) return new ExpressionAstWrapper(v);
+            if (v is VariableExpressionAst) return new VariableExpressionAstWrapper(v as VariableExpressionAst);
             if (v is ErrorExpressionAst) return new ExpressionAstWrapper(v);
-            if (v is BinaryExpressionAst) return new ExpressionAstWrapper(v);
-            if (v is UnaryExpressionAst) return new ExpressionAstWrapper(v);
 
-            if (v is TernaryExpressionAst) return new ExpressionAstWrapper(v);
             if (v is UnaryExpressionAst) return new ExpressionAstWrapper(v);
+            if (v is BinaryExpressionAst) return new ExpressionAstWrapper(v);
+            if (v is TernaryExpressionAst) return new ExpressionAstWrapper(v);
+
             if (v is AttributedExpressionAst) return new ExpressionAstWrapper(v);
             if (v is MemberExpressionAst) return new ExpressionAstWrapper(v);
             if (v is TypeExpressionAst) return new ExpressionAstWrapper(v);
@@ -243,7 +410,7 @@ namespace PowderShell
              // if (v is StringConstantExpressionAst) return new ExpressionAstWrapper(v);
 
             if (v is ExpandableStringExpressionAst) return new ExpressionAstWrapper(v);
-            if (v is ScriptBlockExpressionAst) return new ExpressionAstWrapper(v);
+            if (v is ScriptBlockExpressionAst) return new ScriptBlockExpressionAstWrapper(v as ScriptBlockExpressionAst);
             if (v is ArrayLiteralAst) return new ExpressionAstWrapper(v);
             if (v is HashtableAst) return new ExpressionAstWrapper(v);
             if (v is ArrayExpressionAst) return new ExpressionAstWrapper(v);
@@ -255,8 +422,34 @@ namespace PowderShell
             string typeName = v.GetType().Name;
             return new ExpressionAstWrapper(v);
         }
+
     }
 
+    public class CommandParameterAstWrapper: CommandElementAstWrapper
+    {
+        public ExpressionAstWrapper Argument { get; }
+        public string ParameterName { get; }
+
+        public CommandParameterAstWrapper(CommandParameterAst ast) 
+            : base(ast)
+        {
+            if (ast.Argument != null)
+                Argument = ExpressionAstWrapper.Get(ast.Argument);
+            ParameterName = ast.ParameterName;
+        }
+
+        public override string ToString()
+        {
+            if (Argument != null)
+            {
+                return $"-{ParameterName}:{Argument}";
+            }
+            else
+            {
+                return $"-{ParameterName}";
+            }
+        }
+    }
 
     public class CommandElementAstWrapper : AstWrapper<CommandElementAst>
     {
@@ -265,16 +458,11 @@ namespace PowderShell
         {
         }
 
-        public override string ToString()
-        {
-            return BaseAst.ToString() ;
-        }
-
         internal static CommandElementAstWrapper Get(CommandElementAst v)
         {
             if (v is CommandParameterAst)
             {
-                return new CommandElementAstWrapper(v as CommandParameterAst);
+                return new CommandParameterAstWrapper(v as CommandParameterAst);
             }
             else if (v is ExpressionAst)
             {
@@ -286,6 +474,22 @@ namespace PowderShell
             }
         }
     }
+
+
+    public class TypeConstraintAstWrapper : AttributeBaseAstWrapper
+    {
+        public TypeConstraintAstWrapper(TypeConstraintAst ast)
+        : base(ast)
+        {
+            
+        }
+
+        public override string ToString()
+        {
+            return $"[{TypeName.FullName}]";
+        }
+    }
+
 
 
     public class AttributeBaseAstWrapper : AstWrapper<AttributeBaseAst>
@@ -311,7 +515,7 @@ namespace PowderShell
             }
             else if (v is TypeConstraintAst)
             {
-                return new AttributeBaseAstWrapper(v);
+                return new TypeConstraintAstWrapper(v as TypeConstraintAst);
             }
             else
             {
@@ -345,22 +549,104 @@ namespace PowderShell
         public override string ToString()
         {
             StringBuilder result = new StringBuilder();
-            if (BaseAst != null)
+
+            if (Statements != null)
             {
-                if (Statements != null)
+                result.AppendLine($"{{");
+                foreach (var statement in Statements)
                 {
-                    result.AppendLine($"{{");
-                    foreach (var statement in Statements)
-                    {
-                        result.AppendLine(Helpers.IndentLines(4, statement.ToString()));
-                    }
-                    result.AppendLine("}");
+                    result.AppendLine(Helpers.IndentLines(4, statement.ToString()));
                 }
-                else
-                {
-                    result.AppendLine($"{{ }}");
-                }
+                result.AppendLine("}");
             }
+            else
+            {
+                result.AppendLine($"{{ }}");
+            }
+
+            return result.ToString();
+        }
+    }
+
+
+    public class CatchClauseAstWrapper : AstWrapper<CatchClauseAst>
+    {
+        public bool IsCatchAll { get; }
+        public List<TypeConstraintAstWrapper> CatchTypes { get; }
+        public StatementBlockAstWrapper Body { get; }
+
+        public CatchClauseAstWrapper(CatchClauseAst ast) : base(ast)
+        {
+            IsCatchAll = ast.IsCatchAll;
+            CatchTypes = ast.CatchTypes.Select(t => new TypeConstraintAstWrapper(t)).ToList();
+            Body = new StatementBlockAstWrapper(ast.Body);
+        }
+
+        public override string ToString()
+        {
+            StringBuilder result = new StringBuilder();
+
+            if (IsCatchAll)
+            {
+                result.Append("catch ");
+            }
+            else
+            {
+                result.Append("catch [");
+
+                for (int i = 0; i < CatchTypes.Count; i++)
+                {
+                    result.Append(CatchTypes[i].ToString());
+                    if (i < CatchTypes.Count - 1)
+                    {
+                        result.Append(", ");
+                    }
+                }
+
+                result.Append("] ");
+            }
+
+            result.Append(Body.ToString());
+
+            return result.ToString();
+        }
+    }
+
+    public class TryStatementAstWrapper : StatementAstWrapper<TryStatementAst>
+    {
+        public TryStatementAstWrapper(TryStatementAst ast)
+            : base(ast)
+        {
+            if (ast.Finally != null)
+                Finally = new StatementBlockAstWrapper(ast.Finally);
+
+            Body = new StatementBlockAstWrapper(ast.Body);
+            CatchClauses = ast.CatchClauses.Select(v => new CatchClauseAstWrapper(v)).ToList();
+        }
+
+        public StatementBlockAstWrapper Finally { get; }
+        public StatementBlockAstWrapper Body { get; }
+        public List<CatchClauseAstWrapper> CatchClauses { get; }
+
+
+        public override string ToString()
+        {
+            StringBuilder result = new StringBuilder();
+
+            result.AppendLine();
+            result.Append("try ").Append(Body.ToString());
+
+            foreach (var catchClause in CatchClauses)
+            {
+                result.Append(catchClause.ToString());
+            }
+
+            if (Finally != null)
+            {
+                result.Append(" finally ").Append(Finally.ToString());
+            }
+            result.AppendLine();
+
             return result.ToString();
         }
     }
@@ -374,6 +660,7 @@ namespace PowderShell
             : base(ast)
         {
             Clauses = ast.Clauses?.Select(v => new Tuple<PipelineBaseAstWrapper, StatementBlockAstWrapper>(PipelineBaseAstWrapper.Get(v.Item1), new StatementBlockAstWrapper(v.Item2) )).ToList();
+            
             if (ast.ElseClause != null) 
                 ElseClause = new StatementBlockAstWrapper(ast.ElseClause);
         }
@@ -478,6 +765,8 @@ namespace PowderShell
         }
     }
 
+
+
     public class CommandExpressionAstWrapper : CommandBaseAstWrapper
     {
         public ExpressionAstWrapper Expression { get; }
@@ -510,7 +799,7 @@ namespace PowderShell
         : base(ast)
         {
             NamedArguments = ast.NamedArguments?.Select(v => new NamedAttributeArgumentAstWrapper(v))?.ToList();
-            PositionalArguments = ast.PositionalArguments?.Select(v => new ExpressionAstWrapper(v))?.ToList();
+            PositionalArguments = ast.PositionalArguments?.Select(ExpressionAstWrapper.Get)?.ToList();
         }
 
         public override string ToString()
@@ -787,14 +1076,13 @@ namespace PowderShell
     }
 
 
-
-    public class TrapStatementAstWrapper : StatementAstWrapper
-    {
-        public TrapStatementAstWrapper(TrapStatementAst ast)
-        : base(ast)
-        {
-        }
-    }
+    //public class TrapStatementAstWrapper : StatementAstWrapper
+    //{
+    //    public TrapStatementAstWrapper(TrapStatementAst ast)
+    //    : base(ast)
+    //    {
+    //    }
+    //}
 
 
     public abstract class StatementAstWrapper : AstWrapper<StatementAst> //: StatementAstWrapper<StatementAst>
@@ -818,15 +1106,15 @@ namespace PowderShell
             }
             else if (ast is ThrowStatementAst)
             {
-                return new StatementAstWrapper<ThrowStatementAst>(ast);
+                return new ThrowStatementAstWrapper(ast as ThrowStatementAst);
             }
             else if (ast is FunctionDefinitionAst)
             {
                 return new FunctionDefintionAstWrapper(ast as FunctionDefinitionAst);
             }
-            else if (ast is ForEachStatementAst)
+            else if (ast is LabeledStatementAst)
             {
-                return new StatementAstWrapper<ForEachStatementAst>(ast);
+                return LabeledStatementAstWrapper.Get(ast as LabeledStatementAst);
             }
             else if (ast is IfStatementAst)
             {
@@ -834,7 +1122,7 @@ namespace PowderShell
             }
             else if (ast is TryStatementAst)
             {
-                return new StatementAstWrapper<TryStatementAst>(ast);
+                return new TryStatementAstWrapper(ast as TryStatementAst);
             }
             else if (ast is TypeDefinitionAst)
             {
@@ -858,7 +1146,7 @@ namespace PowderShell
             }
             else if (ast is ContinueStatementAst)
             {
-                return new StatementAstWrapper<ContinueStatementAst>(ast);
+                return new ContinueStatementAstWrapper(ast as ContinueStatementAst);
             }
             else if (ast is ReturnStatementAst)
             {
@@ -867,10 +1155,6 @@ namespace PowderShell
             else if (ast is ExitStatementAst)
             {
                 return new StatementAstWrapper<ExitStatementAst>(ast);
-            }
-            else if (ast is ThrowStatementAst)
-            {
-                return new StatementAstWrapper<ThrowStatementAst>(ast);
             }
             else if (ast is CommandBaseAst)
             {
@@ -1012,22 +1296,21 @@ namespace PowderShell
         public override string ToString()
         {
             StringBuilder result = new StringBuilder();
-            if (BaseAst != null)
+
+            if (Statements != null)
             {
-                if (Statements != null)
+                result.AppendLine($"{{");
+                foreach (var statement in Statements)
                 {
-                    result.AppendLine($"{{");
-                    foreach (var statement in Statements)
-                    {
-                        result.AppendLine(Helpers.IndentLines(4, statement.ToString()));
-                    }
-                    result.AppendLine("}");
+                    result.AppendLine(Helpers.IndentLines(4, statement.ToString()));
                 }
-                else
-                {
-                    result.AppendLine($"{{ }}");
-                }
+                result.AppendLine("}");
             }
+            else
+            {
+                result.AppendLine($"{{ }}");
+            }
+            
             return result.ToString();
         }
     }

@@ -4,7 +4,7 @@
 
 namespace PowderShell
 {
-    public partial class PSSanitizerCollections
+    public partial class GlobalCollections
     {
         public static readonly SortedDictionary<string, string> PSCommands = new SortedDictionary<string, string>
         {
