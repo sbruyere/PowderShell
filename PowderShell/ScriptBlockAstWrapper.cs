@@ -1,4 +1,5 @@
-﻿using Microsoft.CodeAnalysis.CSharp.Syntax;
+﻿using JetBrains.Annotations;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System.Management.Automation;
 using System.Management.Automation.Language;
 using System.Text;
@@ -41,6 +42,16 @@ namespace PowderShell
             else
                 return $"{BaseAst}";
 
+        }
+
+        public virtual bool CanEvaluate()
+        {
+            return false;
+        }
+
+        public virtual DExpression Evaluate()
+        {
+            return new DCodeBlock(ToString());
         }
     }
 
@@ -148,11 +159,6 @@ namespace PowderShell
             Value = ast.Value;
         }
 
-        public override string ToString()
-        {
-            return Value.ToString();
-        }
-
         public static ConstantExpressionAstWrapper Get(ConstantExpressionAst ast)
         {
             if (ast is StringConstantExpressionAst)
@@ -160,6 +166,28 @@ namespace PowderShell
 
             return new ConstantExpressionAstWrapper(ast);
         }
+
+
+        public override string ToString()
+        {
+            return Value.ToString();
+        }
+
+        public override bool CanEvaluate()
+        {
+            return true;
+        }
+
+        public override DExpression Evaluate()
+        {
+            DMathExpression dMathExpression = DMathExpression.Get(Value);
+
+            if (dMathExpression == null)
+                return base.Evaluate();
+
+            return dMathExpression;
+        }
+
     }
 
     public class ContinueStatementAstWrapper : StatementAstWrapper
@@ -518,6 +546,57 @@ namespace PowderShell
         }
     }
 
+    public class ArrayLiteralAstWrapper : ExpressionAstWrapper
+    {
+        public ArrayLiteralAstWrapper(ArrayLiteralAst ast) : base(ast)
+        {
+            Elements = ast.Elements.Select(Get).ToList();
+
+        }
+
+        public List<ExpressionAstWrapper> Elements { get; }
+
+        public override string ToString()
+        {
+            return $"@({string.Join(", ", Elements)})";
+        }
+
+    }
+
+    public class SubExpressionAstWrapper : ExpressionAstWrapper
+    {
+        public SubExpressionAstWrapper(SubExpressionAst ast) : base(ast)
+        {
+            SubExpression = new StatementBlockAstWrapper(ast.SubExpression);
+        }
+
+        public StatementBlockAstWrapper SubExpression { get; }
+
+        public override string ToString()
+        {
+            return $"$({SubExpression})";
+        }
+    }
+
+    public class IndexExpressionAstWrapper : ExpressionAstWrapper
+    {
+        public bool NullConditional { get; }
+        public ExpressionAstWrapper Index { get; }
+
+        public IndexExpressionAstWrapper(IndexExpressionAst ast): base(ast)
+        {
+            NullConditional = ast.NullConditional;
+            Index = ExpressionAstWrapper.Get(ast.Index);
+
+        }
+
+        public override string ToString()
+        {
+            string nullConditionalOperator = NullConditional ? "?" : "";
+            return $"{nullConditionalOperator}[{Index}]";
+        }
+    }
+
     public class BinaryExpressionAstWrapper : ExpressionAstWrapper
     {
         public BinaryExpressionAstWrapper(BinaryExpressionAst ast) : base(ast)
@@ -532,13 +611,63 @@ namespace PowderShell
         public ExpressionAstWrapper Right { get; }
         public ExpressionAstWrapper Left { get; }
 
+        public override bool CanEvaluate()
+        {
+            return Right.CanEvaluate() & Left.CanEvaluate();
+        }
+
+        public override DExpression Evaluate()
+        {
+            //if (!CanEvaluate())
+            //    return base.Evaluate();
+
+            string op = null;
+            switch (Operator)
+            {
+                case TokenKind.Plus:
+                    op = "+";
+                    break;
+                case TokenKind.Minus:
+                    op = "-";
+                    break;
+                case TokenKind.Multiply:
+                    op = "*";
+                    break;
+                case TokenKind.Divide:
+                    op = "/";
+                    break;
+                case TokenKind.Xor:
+                    op = "-";
+                    break;
+                case TokenKind.Equals:
+                    op = "=";
+                    break;
+                default:
+                    return new DCodeBlock($"{Left} {Operator.ToString().ToLower()} {Right}");
+            }
+
+
+            return Operation.DoOperation(op, Left.Evaluate(), Right.Evaluate());
+        }
+
         public override string ToString()
         {
+            if (CanEvaluate())
+                return Evaluate().ToExpressionString();
+
             return $"{Left} {Operator.ToString().ToLower()} {Right}";
         }
     }
 
-    public class ExpressionAstWrapper : CommandElementAstWrapper
+    public class UnknownExpressionAstWrapper: ExpressionAstWrapper
+    {
+        public UnknownExpressionAstWrapper(ExpressionAst ast) : base(ast)
+        {
+
+        }
+    }
+
+    public abstract class ExpressionAstWrapper : CommandElementAstWrapper
     {
         public ITypeName TypeName { get; }
         public Type StaticType { get; }
@@ -553,31 +682,31 @@ namespace PowderShell
         internal static ExpressionAstWrapper Get(ExpressionAst v)
         {
             if (v is VariableExpressionAst) return new VariableExpressionAstWrapper(v as VariableExpressionAst);
-            if (v is ErrorExpressionAst) return new ExpressionAstWrapper(v);
+            if (v is ErrorExpressionAst) return new UnknownExpressionAstWrapper(v);
 
-            if (v is UnaryExpressionAst) return new ExpressionAstWrapper(v);
+            if (v is UnaryExpressionAst) return new UnknownExpressionAstWrapper(v);
             if (v is BinaryExpressionAst) return new BinaryExpressionAstWrapper(v as BinaryExpressionAst);
-            if (v is TernaryExpressionAst) return new ExpressionAstWrapper(v);
+            if (v is TernaryExpressionAst) return new UnknownExpressionAstWrapper(v);
 
-            if (v is AttributedExpressionAst) return new ExpressionAstWrapper(v);
-            if (v is MemberExpressionAst) return new ExpressionAstWrapper(v);
-            if (v is TypeExpressionAst) return new ExpressionAstWrapper(v);
-            if (v is VariableExpressionAst) return new ExpressionAstWrapper(v);
+            if (v is AttributedExpressionAst) return new UnknownExpressionAstWrapper(v);
+            if (v is MemberExpressionAst) return new UnknownExpressionAstWrapper(v);
+            if (v is TypeExpressionAst) return new UnknownExpressionAstWrapper(v);
+            if (v is VariableExpressionAst) return new UnknownExpressionAstWrapper(v);
             if (v is ConstantExpressionAst) return ConstantExpressionAstWrapper.Get(v as ConstantExpressionAst);
              // if (v is StringConstantExpressionAst) return new ExpressionAstWrapper(v);
 
-            if (v is ExpandableStringExpressionAst) return new ExpressionAstWrapper(v);
+            if (v is ExpandableStringExpressionAst) return new UnknownExpressionAstWrapper(v);
             if (v is ScriptBlockExpressionAst) return new ScriptBlockExpressionAstWrapper(v as ScriptBlockExpressionAst);
-            if (v is ArrayLiteralAst) return new ExpressionAstWrapper(v);
-            if (v is HashtableAst) return new ExpressionAstWrapper(v);
-            if (v is ArrayExpressionAst) return new ExpressionAstWrapper(v);
+            if (v is ArrayLiteralAst) return new ArrayLiteralAstWrapper(v as ArrayLiteralAst);
+            if (v is HashtableAst) return new UnknownExpressionAstWrapper(v);
+            if (v is ArrayExpressionAst) return new UnknownExpressionAstWrapper(v);
             if (v is ParenExpressionAst) return new ParenExpressionAstWrapper(v as ParenExpressionAst);
-            if (v is SubExpressionAst) return new ExpressionAstWrapper(v);
-            if (v is UsingExpressionAst) return new ExpressionAstWrapper(v);
-            if (v is IndexExpressionAst) return new ExpressionAstWrapper(v);
+            if (v is SubExpressionAst) return new SubExpressionAstWrapper(v as SubExpressionAst);
+            if (v is UsingExpressionAst) return new UnknownExpressionAstWrapper(v);
+            if (v is IndexExpressionAst) return new IndexExpressionAstWrapper(v as IndexExpressionAst);
 
             string typeName = v.GetType().Name;
-            return new ExpressionAstWrapper(v);
+            return new UnknownExpressionAstWrapper(v);
         }
 
     }
