@@ -810,6 +810,108 @@ namespace PowderShell
         }
     }
 
+    public class ExpandableStringExpressionAstWrapper: ExpressionAstWrapper
+    {
+        public string Value { get; }
+        public StringConstantType StringConstantType { get; }
+        public List<ExpressionAstWrapper> NestedExpressions { get; }
+
+        public ExpandableStringExpressionAstWrapper(ExpandableStringExpressionAst ast)
+            : base(ast)
+        {
+            Value = ast.Value;
+            StringConstantType = ast.StringConstantType;
+            NestedExpressions = ast.NestedExpressions.Select(Get).ToList();
+        }
+
+        public override string ToString()
+        {
+            var result = new StringBuilder();
+
+            string valResult = Value;
+
+            foreach (var nestedExpression in NestedExpressions)
+            {
+                valResult = valResult.Replace(nestedExpression.BaseAst.ToString(), nestedExpression.ToString());
+            }
+
+            switch (StringConstantType)
+            {
+                case StringConstantType.SingleQuoted:
+                    result.Append('\'').Append(valResult).Append('\'');
+                    break;
+                case StringConstantType.DoubleQuoted:
+                    result.Append('"').Append(valResult).Append('"');
+                    break;
+                case StringConstantType.BareWord:
+                    result.Append(valResult);
+                    break;
+                case StringConstantType.SingleQuotedHereString:
+                    result.Append("@'").Append(valResult).Append("'@");
+                    break;
+                case StringConstantType.DoubleQuotedHereString:
+                    result.Append("@\"").Append(valResult).Append("\"@");
+                    break;
+                default:
+                    throw new NotSupportedException($"Unsupported string constant type: {StringConstantType}");
+            }
+
+
+            return result.ToString();
+        }
+    }
+
+    public class ExpandableStringExpressionAstWrapper: ExpressionAstWrapper
+    {
+        public string Value { get; }
+        public StringConstantType StringConstantType { get; }
+        public List<ExpressionAstWrapper> NestedExpressions { get; }
+
+        public ExpandableStringExpressionAstWrapper(ExpandableStringExpressionAst ast)
+            : base(ast)
+        {
+            Value = ast.Value;
+            StringConstantType = ast.StringConstantType;
+            NestedExpressions = ast.NestedExpressions.Select(Get).ToList();
+        }
+
+        public override string ToString()
+        {
+            var result = new StringBuilder();
+
+            string valResult = Value;
+
+            foreach (var nestedExpression in NestedExpressions)
+            {
+                valResult = valResult.Replace(nestedExpression.BaseAst.ToString(), nestedExpression.ToString());
+            }
+
+            switch (StringConstantType)
+            {
+                case StringConstantType.SingleQuoted:
+                    result.Append('\'').Append(valResult).Append('\'');
+                    break;
+                case StringConstantType.DoubleQuoted:
+                    result.Append('"').Append(valResult).Append('"');
+                    break;
+                case StringConstantType.BareWord:
+                    result.Append(valResult);
+                    break;
+                case StringConstantType.SingleQuotedHereString:
+                    result.Append("@'").Append(valResult).Append("'@");
+                    break;
+                case StringConstantType.DoubleQuotedHereString:
+                    result.Append("@\"").Append(valResult).Append("\"@");
+                    break;
+                default:
+                    throw new NotSupportedException($"Unsupported string constant type: {StringConstantType}");
+            }
+
+
+            return result.ToString();
+        }
+    }
+
     public class StatementBlockAstWrapper : AstWrapper<StatementBlockAst>
     {
 
