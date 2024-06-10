@@ -540,8 +540,24 @@ namespace PowderShell
             Pipeline = PipelineBaseAstWrapper.Get(ast.Pipeline);
         }
 
+        public override bool CanEvaluate()
+        {
+            return Pipeline.CanEvaluate();
+        }
+
+        public override DExpression Evaluate()
+        {
+            if (CanEvaluate())
+                return Pipeline.Evaluate();
+
+            return base.Evaluate();
+        }
+
         public override string ToString()
         {
+            if (CanEvaluate())
+                return Evaluate().ToExpressionString();
+
             return $"({Pipeline})";
         }
     }
@@ -572,8 +588,21 @@ namespace PowderShell
 
         public StatementBlockAstWrapper SubExpression { get; }
 
+        public override bool CanEvaluate()
+        {
+            return SubExpression.CanEvaluate();
+        }
+
+        public override DExpression Evaluate()
+        {
+            return SubExpression.Evaluate();
+        }
+
         public override string ToString()
         {
+            if (CanEvaluate())
+                return SubExpression.Evaluate().ToExpressionString();
+
             return $"$({SubExpression})";
         }
     }
@@ -582,18 +611,19 @@ namespace PowderShell
     {
         public bool NullConditional { get; }
         public ExpressionAstWrapper Index { get; }
+        public ExpressionAstWrapper Target { get; }
 
         public IndexExpressionAstWrapper(IndexExpressionAst ast): base(ast)
         {
             NullConditional = ast.NullConditional;
             Index = ExpressionAstWrapper.Get(ast.Index);
-
+            Target = ExpressionAstWrapper.Get(ast.Target);
         }
 
         public override string ToString()
         {
             string nullConditionalOperator = NullConditional ? "?" : "";
-            return $"{nullConditionalOperator}[{Index}]";
+            return $"{Target}{nullConditionalOperator}[{Index}]";
         }
     }
 
@@ -695,7 +725,7 @@ namespace PowderShell
             if (v is ConstantExpressionAst) return ConstantExpressionAstWrapper.Get(v as ConstantExpressionAst);
              // if (v is StringConstantExpressionAst) return new ExpressionAstWrapper(v);
 
-            if (v is ExpandableStringExpressionAst) return new UnknownExpressionAstWrapper(v);
+            if (v is ExpandableStringExpressionAst) return new ExpandableStringExpressionAstWrapper(v as ExpandableStringExpressionAst);
             if (v is ScriptBlockExpressionAst) return new ScriptBlockExpressionAstWrapper(v as ScriptBlockExpressionAst);
             if (v is ArrayLiteralAst) return new ArrayLiteralAstWrapper(v as ArrayLiteralAst);
             if (v is HashtableAst) return new UnknownExpressionAstWrapper(v);
@@ -861,57 +891,6 @@ namespace PowderShell
         }
     }
 
-    public class ExpandableStringExpressionAstWrapper: ExpressionAstWrapper
-    {
-        public string Value { get; }
-        public StringConstantType StringConstantType { get; }
-        public List<ExpressionAstWrapper> NestedExpressions { get; }
-
-        public ExpandableStringExpressionAstWrapper(ExpandableStringExpressionAst ast)
-            : base(ast)
-        {
-            Value = ast.Value;
-            StringConstantType = ast.StringConstantType;
-            NestedExpressions = ast.NestedExpressions.Select(Get).ToList();
-        }
-
-        public override string ToString()
-        {
-            var result = new StringBuilder();
-
-            string valResult = Value;
-
-            foreach (var nestedExpression in NestedExpressions)
-            {
-                valResult = valResult.Replace(nestedExpression.BaseAst.ToString(), nestedExpression.ToString());
-            }
-
-            switch (StringConstantType)
-            {
-                case StringConstantType.SingleQuoted:
-                    result.Append('\'').Append(valResult).Append('\'');
-                    break;
-                case StringConstantType.DoubleQuoted:
-                    result.Append('"').Append(valResult).Append('"');
-                    break;
-                case StringConstantType.BareWord:
-                    result.Append(valResult);
-                    break;
-                case StringConstantType.SingleQuotedHereString:
-                    result.Append("@'").Append(valResult).Append("'@");
-                    break;
-                case StringConstantType.DoubleQuotedHereString:
-                    result.Append("@\"").Append(valResult).Append("\"@");
-                    break;
-                default:
-                    throw new NotSupportedException($"Unsupported string constant type: {StringConstantType}");
-            }
-
-
-            return result.ToString();
-        }
-    }
-
     public class StatementBlockAstWrapper : AstWrapper<StatementBlockAst>
     {
 
@@ -934,7 +913,36 @@ namespace PowderShell
 
         }
 
+        public override bool CanEvaluate()
+        {
+            if (Statements.Count == 1)
+            {
+                return Statements[0].CanEvaluate();
+            }
+            return false;
+        }
+
+        public override DExpression Evaluate()
+        {
+            if (CanEvaluate())
+            {
+                return Statements[0].Evaluate();
+            }
+
+            return base.Evaluate();
+        }
+
         public override string ToString()
+        {
+            if (CanEvaluate())
+            {
+                return Evaluate().ToExpressionString();
+            }
+
+            return PrettifyBlock();
+        }
+
+        private string PrettifyBlock()
         {
             StringBuilder result = new StringBuilder();
 
@@ -1165,8 +1173,22 @@ namespace PowderShell
             Expression = ExpressionAstWrapper.Get(ast.Expression);
         }
 
+        public override bool CanEvaluate()
+        {
+            return Expression.CanEvaluate();
+        }
+
         public override string ToString()
         {
+            string expression = Expression.ToString();
+            if (CanEvaluate())
+            {
+                expression = Expression.Evaluate().ToExpressionString();
+            } else
+            {
+                expression = Expression.ToString();
+            }
+
             StringBuilder result = new StringBuilder();
 
             result.Append(Expression.ToString());
@@ -1438,7 +1460,34 @@ namespace PowderShell
             IsBackground = ast.Background;
         }
 
+        public override bool CanEvaluate()
+        {
+            if (Elements.Count == 1)
+            {
+                return Elements[0].CanEvaluate();
+            }
+
+            return false;
+        }
+
+        public override DExpression Evaluate()
+        {
+            if (CanEvaluate())
+            {
+                return Elements[0].Evaluate();
+            }
+            return base.Evaluate();
+        }
+
         public override string ToString()
+        {
+            if (CanEvaluate())
+                return Evaluate().ToExpressionString();
+
+            return Prettify();
+        }
+
+        private string Prettify()
         {
             StringBuilder result = new StringBuilder();
 
