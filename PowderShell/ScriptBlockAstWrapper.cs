@@ -1,5 +1,7 @@
 ﻿using JetBrains.Annotations;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using PowderShell.EvaluationObjects;
+using System.Collections.ObjectModel;
 using System.Management.Automation;
 using System.Management.Automation.Language;
 using System.Text;
@@ -70,6 +72,269 @@ namespace PowderShell
         }
     }
 
+    public class AttributedExpressionAstWrapper : ExpressionAstWrapper
+    {
+        public ExpressionAstWrapper Child { get; }
+        public AttributeBaseAstWrapper Attribute { get; }
+
+        public AttributedExpressionAstWrapper(AttributedExpressionAst ast) 
+            : base(ast)
+        {
+            Child = ExpressionAstWrapper.Get(ast.Child);
+            Attribute = AttributeBaseAstWrapper.Get(ast.Attribute);
+        }
+
+        public static AttributedExpressionAstWrapper Get(AttributedExpressionAst ast)
+        {
+            if (ast is ConvertExpressionAst)
+                return new ConvertExpressionAstWrapper(ast as ConvertExpressionAst);
+
+            return new AttributedExpressionAstWrapper(ast);
+        }
+
+        public override string ToString()
+        {
+            return $"{Attribute} {Child}";
+        }
+    }
+
+    public class TypeExpressionAstWrapper : ExpressionAstWrapper
+    {
+        public ITypeName TypeName { get; }
+
+        public TypeExpressionAstWrapper(TypeExpressionAst ast) : base(ast)
+        {
+            TypeName = ast.TypeName;
+        }
+
+        public override string ToString()
+        {
+            return $"[{TypeName.Name}]";
+        }
+    }
+
+    public class MemberExpressionAstWrapper : ExpressionAstWrapper
+    {
+        public ExpressionAstWrapper Expression { get; }
+        public bool NullConditional { get; private set; }
+        public CommandElementAstWrapper Member { get; }
+        public bool Static { get; }
+
+        public MemberExpressionAstWrapper(MemberExpressionAst ast) : base(ast)
+        {
+            if (ast.Expression != null)
+                Expression = ExpressionAstWrapper.Get(ast.Expression);
+            
+
+            if (ast.Member != null)
+                Member = CommandElementAstWrapper.Get( ast.Member);
+
+            NullConditional = ast.NullConditional;
+            Static = ast.Static;
+        }
+
+       public static MemberExpressionAstWrapper Get(MemberExpressionAst ast)
+        {
+            if (ast is InvokeMemberExpressionAst)
+            {
+                return new InvokeMemberExpressionAstWrapper(ast as InvokeMemberExpressionAst);
+            }
+
+            return new MemberExpressionAstWrapper(ast);
+        }
+
+
+        public override string ToString()
+        {
+            string nullConditionalOperator = NullConditional ? "?." : ".";
+            string staticOperator = Static ? "::" : nullConditionalOperator;
+            return $"{Expression}{staticOperator}{Member}";
+        }
+
+    }
+
+    public class InvokeMemberExpressionAstWrapper : MemberExpressionAstWrapper
+    {
+        public InvokeMemberExpressionAstWrapper(InvokeMemberExpressionAst ast) 
+            : base(ast)
+        {
+            if (ast.Arguments != null)
+                Arguments = ast.Arguments.Select(v => ExpressionAstWrapper.Get(v)).ToList();
+            if (ast.GenericTypeArguments != null)
+                GenericTypeArguments = ast.GenericTypeArguments;
+        }
+
+        public List<ExpressionAstWrapper> Arguments { get; }
+        public ReadOnlyCollection<ITypeName> GenericTypeArguments { get; }
+
+
+        public override bool CanEvaluate()
+        {
+            if (this.GenericTypeArguments != null && this.GenericTypeArguments.Count > 0)
+                return false;
+
+            if (!this.Member.CanEvaluate())
+                return false;
+
+            if (this.Static || !this.Expression.CanEvaluate())
+                return false;
+
+            bool argumentsEvaluable = Arguments.All(a => a.CanEvaluate());
+            if (!argumentsEvaluable)
+                return false;
+
+            string memberName = Member.Evaluate().ToValueString().ToLower();
+
+            switch (memberName)
+            {
+                case "replace":
+                    return true;
+
+                    break;
+                case "join":
+                    return true;
+                default:
+                    return false;
+            }
+            
+        }
+
+        public override DExpression Evaluate()
+        {
+            if (!CanEvaluate())
+                return new DCodeBlock(GetCode());
+
+
+            string memberName = Member.Evaluate().ToValueString().ToLower();
+
+            switch (memberName)
+            {
+                case "join":
+                    //(0);
+                    break;
+                case "replace":
+                    DExpression dExpression = Expression.Evaluate();
+                    DExpression[] arguments = Arguments.Select(v => v.Evaluate()).ToArray();
+
+                    if (!(dExpression is DSimpleStringExpression))
+                        return new DCodeBlock(GetCode());
+
+                    string sResult = dExpression.ToValueString();
+                    string p1 = arguments[0].ToValueString();
+                    string p2 = arguments[1].ToValueString();
+
+                    sResult = sResult.Replace(p1, p2);
+
+                    return new DSimpleStringExpression(sResult, Encoding.Unicode);
+            }
+
+            return new DCodeBlock(GetCode());
+        }
+
+        public override string ToString()
+        {
+            return GetCode();
+        }
+
+        private string GetCode()
+        {
+            string args =
+                Arguments == null ?
+                "" :
+                string.Join(", ", Arguments.Select(arg => arg.ToString()));
+
+            string generics = "";
+            if (GenericTypeArguments != null && GenericTypeArguments.Count > 0)
+            {
+                generics = $"<{string.Join(", ", GenericTypeArguments.Select(g => g.FullName))}>";
+            }
+
+            return $"{base.ToString()}{generics}({args})";
+        }
+    }
+
+    public class ConvertExpressionAstWrapper: AttributedExpressionAstWrapper
+    {
+        public TypeConstraintAstWrapper Type { get; }
+
+        public ConvertExpressionAstWrapper(ConvertExpressionAst ast) : base(ast)
+        {
+            Type = new TypeConstraintAstWrapper(ast.Type);
+        }
+
+        public override bool CanEvaluate()
+        {
+            if (!this.Child.CanEvaluate())
+                return false;
+
+            object valueExp = this.Child.Evaluate();
+
+            if (!(valueExp is DMathExpression))
+                return false;
+
+            DMathExpression mathExp = (valueExp as DMathExpression);
+            if (!mathExp.IsValuable)
+                return false;
+
+            string typeName = Type.TypeName.Name;
+            double realNumber = mathExp.GetSymExp().RealNumberValue;
+
+            switch (typeName)
+            {
+                case "char":
+                case "int":
+                case "uint":
+                case "long":
+                    return true;
+                    break;
+                default:
+                    return false;
+            }
+        }
+
+        public override DExpression Evaluate()
+        {
+            if (!this.Child.CanEvaluate())
+                return new DCodeBlock(GetExpression());
+
+            object valueExp = this.Child.Evaluate();
+
+            if (!(valueExp is DMathExpression))
+                return new DCodeBlock(GetExpression());
+
+            DMathExpression mathExp = (valueExp as DMathExpression);
+            if (!mathExp.IsValuable)
+                return new DCodeBlock(GetExpression());
+
+            string typeName = Type.TypeName.Name;
+            double realNumber = mathExp.GetSymExp().RealNumberValue;
+
+            switch (typeName)
+            {
+                case "char":
+                    return DMathExpression.Get((char)(int)realNumber);
+                case "int":
+                    return DMathExpression.Get((int)realNumber);
+                case "uint":
+                    return DMathExpression.Get((uint)realNumber);
+                case "long":
+                    return DMathExpression.Get((long)realNumber);
+                default:
+                    return new DCodeBlock(GetExpression());
+            }
+        }
+
+        public override string ToString()
+        {
+            return GetExpression();
+        }
+
+        private string GetExpression()
+        {
+            return $"{Type} {Child}";
+        }
+    }
+
     public class ParamBlockAstWrapper : AstWrapper<ParamBlockAst>
     {
         public List<AttributeAstWrapper>? Attributes { get; }
@@ -129,14 +394,19 @@ namespace PowderShell
             StringConstantType = ast.StringConstantType;
         }
 
+        public override DExpression Evaluate()
+        {
+            return new DSimpleStringExpression(Value, Encoding.Unicode);
+        }
+
         public override string ToString()
         {
             switch (StringConstantType)
             {
                 case StringConstantType.DoubleQuoted:
-                    return $"\"{Value}\""; // Wrap the value in double quotes
+                    return $"\"{Value}\""; // Wrap the mathExp in double quotes
                 case StringConstantType.SingleQuoted:
-                    return $"'{Value}'"; // Wrap the value in single quotes
+                    return $"'{Value}'"; // Wrap the mathExp in single quotes
                 case StringConstantType.BareWord:
                     return Value; // No quotes
                 case StringConstantType.SingleQuotedHereString:
@@ -570,6 +840,16 @@ namespace PowderShell
 
         }
 
+        public override bool CanEvaluate()
+        {
+            return Elements.All(e => e.CanEvaluate());
+        }
+
+        public override DExpression Evaluate()
+        {
+            return new DEnumerableExpression(Elements.Select(v => v.Evaluate()));
+        }
+
         public List<ExpressionAstWrapper> Elements { get; }
 
         public override string ToString()
@@ -618,9 +898,92 @@ namespace PowderShell
             NullConditional = ast.NullConditional;
             Index = ExpressionAstWrapper.Get(ast.Index);
             Target = ExpressionAstWrapper.Get(ast.Target);
+            (0).ToString();
+        }
+
+        public override bool CanEvaluate()
+        {
+            return Index.CanEvaluate() && Target.CanEvaluate();
+        }
+
+        public override DExpression Evaluate()
+        {
+            //return new DCodeBlock(GetStringExp());
+            try
+            {
+                DExpression indexExpression = Index.Evaluate();
+                DExpression targetExpression = Target.Evaluate();
+                List<DExpression> result = new();
+
+                if (targetExpression is IStringExpression)
+                {
+                    var charArray = targetExpression.ToValueString().ToCharArray();
+
+                    if (indexExpression is DEnumerableExpression)
+                    {
+                        DEnumerableExpression dIndexes = (DEnumerableExpression)indexExpression;
+
+                        foreach (var x in dIndexes.Elements)
+                        {
+                            var idx = (int)x.GetSymExp().RealNumberValue;
+
+                            char element = charArray[idx];
+
+                            result.Add(new DMathExpression<char>(element));
+                        }
+                        return new DEnumerableExpression(result);
+                    }
+                    else
+                    {
+                        var idx = (int)indexExpression.GetSymExp().RealNumberValue;
+
+                        char element = charArray[idx];
+
+                        return new DMathExpression<char>(element);
+                    }
+
+                }
+
+                if (targetExpression is DEnumerableExpression)
+                {
+                    var targetEnum = targetExpression as DEnumerableExpression;
+
+                    if (indexExpression is DEnumerableExpression)
+                    {
+                        DEnumerableExpression dIndexes = (DEnumerableExpression)indexExpression;
+
+                        foreach (var x in dIndexes.Elements)
+                        {
+                            var idx = (int)x.GetSymExp().RealNumberValue;
+
+                            var expElement = targetEnum.Elements.ElementAt(idx);
+
+                            result.Add(expElement);
+                        }
+
+                        return new DEnumerableExpression(result);
+                    }
+                    else
+                    {
+                        var idx = (int)indexExpression.GetSymExp().RealNumberValue;
+
+                        var expElement = targetEnum.Elements.ElementAt(idx);
+
+                        return expElement;
+                    }
+                }
+            }
+            catch { }
+
+            return new DCodeBlock(GetStringExp());
         }
 
         public override string ToString()
+        {
+            return GetStringExp();
+        }
+
+        private string GetStringExp()
         {
             string nullConditionalOperator = NullConditional ? "?" : "";
             return $"{Target}{nullConditionalOperator}[{Index}]";
@@ -651,6 +1014,17 @@ namespace PowderShell
             //if (!CanEvaluate())
             //    return base.Evaluate();
 
+            var LeftExp = Left.Evaluate();
+            var RightExp = Right.Evaluate();
+            string op = GetStringOperatorFromToken();
+            //return new DCodeBlock($"{Left} {Operator.ToString().ToLower()} {Right}");
+
+
+            return Operation.DoOperation(op, LeftExp, RightExp);
+        }
+
+        private string GetStringOperatorFromToken()
+        {
             string op = null;
             switch (Operator)
             {
@@ -672,12 +1046,22 @@ namespace PowderShell
                 case TokenKind.Equals:
                     op = "=";
                     break;
+                case TokenKind.DotDot:
+                    op = "..";
+                    break;
                 default:
-                    return new DCodeBlock($"{Left} {Operator.ToString().ToLower()} {Right}");
+                    string textOp = null;
+                    int idx = -1;
+                    if ((idx = GlobalCollections.s_operatorTokenKind.IndexOf(Operator)) >= 0)
+                        textOp = GlobalCollections._operatorText[idx];
+                    else
+                        textOp = Operator.ToString();
+
+                    op = "-" + textOp;
+                    break;
             }
 
-
-            return Operation.DoOperation(op, Left.Evaluate(), Right.Evaluate());
+            return op;
         }
 
         public override string ToString()
@@ -685,7 +1069,7 @@ namespace PowderShell
             if (CanEvaluate())
                 return Evaluate().ToExpressionString();
 
-            return $"{Left} {Operator.ToString().ToLower()} {Right}";
+            return $"{Left} {GetStringOperatorFromToken()} {Right}";
         }
     }
 
@@ -699,7 +1083,6 @@ namespace PowderShell
 
     public abstract class ExpressionAstWrapper : CommandElementAstWrapper
     {
-        public ITypeName TypeName { get; }
         public Type StaticType { get; }
 
         internal ExpressionAstWrapper(ExpressionAst ast)
@@ -718,9 +1101,9 @@ namespace PowderShell
             if (v is BinaryExpressionAst) return new BinaryExpressionAstWrapper(v as BinaryExpressionAst);
             if (v is TernaryExpressionAst) return new UnknownExpressionAstWrapper(v);
 
-            if (v is AttributedExpressionAst) return new UnknownExpressionAstWrapper(v);
-            if (v is MemberExpressionAst) return new UnknownExpressionAstWrapper(v);
-            if (v is TypeExpressionAst) return new UnknownExpressionAstWrapper(v);
+            if (v is AttributedExpressionAst) return AttributedExpressionAstWrapper.Get(v as AttributedExpressionAst);
+            if (v is MemberExpressionAst) return MemberExpressionAstWrapper.Get(v as MemberExpressionAst);
+            if (v is TypeExpressionAst) return new TypeExpressionAstWrapper(v as TypeExpressionAst);
             if (v is VariableExpressionAst) return new UnknownExpressionAstWrapper(v);
             if (v is ConstantExpressionAst) return ConstantExpressionAstWrapper.Get(v as ConstantExpressionAst);
              // if (v is StringConstantExpressionAst) return new ExpressionAstWrapper(v);
@@ -854,16 +1237,33 @@ namespace PowderShell
             NestedExpressions = ast.NestedExpressions.Select(Get).ToList();
         }
 
-        public override string ToString()
+        public override bool CanEvaluate()
         {
-            var result = new StringBuilder();
+            return NestedExpressions.All(v => v.CanEvaluate());
+        }
 
+        public override DExpression Evaluate()
+        {
+            return new DSimpleStringExpression(GetEvalString(), Encoding.Unicode);
+        }
+
+        private string GetEvalString()
+        {
             string valResult = Value;
 
             foreach (var nestedExpression in NestedExpressions)
             {
-                valResult = valResult.Replace(nestedExpression.BaseAst.ToString(), nestedExpression.ToString());
+                if (nestedExpression.CanEvaluate())
+                    valResult = valResult.Replace(nestedExpression.BaseAst.ToString(), nestedExpression.Evaluate().ToValueString());
             }
+
+            return valResult;
+        }
+
+        public override string ToString()
+        {
+            var result = new StringBuilder();
+            string valResult = GetEvalString();
 
             switch (StringConstantType)
             {
@@ -889,6 +1289,7 @@ namespace PowderShell
 
             return result.ToString();
         }
+
     }
 
     public class StatementBlockAstWrapper : AstWrapper<StatementBlockAst>
@@ -1135,29 +1536,57 @@ namespace PowderShell
     public class CommandAstWrapper : CommandBaseAstWrapper
     {
         public List<CommandElementAstWrapper> CommandElements { get; }
+        public TokenKind InvocationOperator { get; }
 
         public CommandAstWrapper(CommandAst ast)
             : base(ast)
         {
             CommandElements = ast.CommandElements.Select(v => CommandElementAstWrapper.Get(v)).ToList();
+            InvocationOperator = ast.InvocationOperator;
         }
+
 
         public override string ToString()
         {
             StringBuilder result = new StringBuilder();
+            bool simplify = InvocationOperator == TokenKind.Dot && CommandElements.Count > 0 && CommandElements[0].BaseAst is StringConstantExpressionAst;
 
+
+            // Handle invocation operator
+            if (!simplify)
+            {
+                switch (InvocationOperator)
+                {
+                    case TokenKind.Dot:
+                        result.Append(". ");
+                        break;
+                    case TokenKind.Ampersand:
+                        result.Append("& ");
+                        break;
+                }
+            }
+
+            // Append command elements
             for (int i = 0; i < CommandElements.Count; i++)
             {
-                result.Append(CommandElements[i].ToString());
+                // Remove quotes from command name for simplification
+                if (simplify && i == 0)
+                {
+                    string commandName = CommandElements[i].ToString().Trim('"');
+                    result.Append(commandName);
+                }
+                else
+                {
+                    result.Append(CommandElements[i].ToString());
+                }
+
                 if (i < CommandElements.Count - 1)
                 {
                     result.Append(" ");
                 }
             }
 
-            result.Append(base.ToString()); // Append redirections if any
-
-            return result.ToString();
+            return result.ToString().Trim();
         }
     }
 
@@ -1178,9 +1607,14 @@ namespace PowderShell
             return Expression.CanEvaluate();
         }
 
+        public override DExpression Evaluate()
+        {
+            return Expression.Evaluate();
+        }
+
         public override string ToString()
         {
-            string expression = Expression.ToString();
+            string expression = string.Empty;
             if (CanEvaluate())
             {
                 expression = Expression.Evaluate().ToExpressionString();
@@ -1730,6 +2164,24 @@ namespace PowderShell
 
         }
 
+        public string GetBody() {
+
+            if (Statements != null)
+            {
+                StringBuilder result = new StringBuilder();
+                foreach (var statement in Statements)
+                {
+                    result.AppendLine(Helpers.IndentLines(4, statement.ToString()));
+                }
+                return result.ToString();
+            }
+            else
+            {
+                return string.Empty;
+            }
+
+        }
+
         public override string ToString()
         {
             StringBuilder result = new StringBuilder();
@@ -1737,10 +2189,9 @@ namespace PowderShell
             if (Statements != null)
             {
                 result.AppendLine($"{{");
-                foreach (var statement in Statements)
-                {
-                    result.AppendLine(Helpers.IndentLines(4, statement.ToString()));
-                }
+
+                result.Append(GetBody());
+
                 result.AppendLine("}");
             }
             else
@@ -1775,7 +2226,6 @@ namespace PowderShell
             if (_scriptBlockAst.ProcessBlock != null)
                 ProcessBlock = new NamedBlockAstWrapper(_scriptBlockAst.ProcessBlock);
 
-
             if (_scriptBlockAst.EndBlock != null)
                 EndBlock = new NamedBlockAstWrapper(_scriptBlockAst.EndBlock);
 
@@ -1794,10 +2244,23 @@ namespace PowderShell
             }
 
             // Process the named blocks (Begin, Process, End, Dynamic)
-            AppendNamedBlock(result, BeginBlock, "Begin");
-            AppendNamedBlock(result, ProcessBlock, "Process");
-            AppendNamedBlock(result, EndBlock, "End");
-            AppendNamedBlock(result, DynamicParamBlock, "DynamicParam");
+            if (
+                ParamBlock == null && 
+                BeginBlock == null && 
+                ProcessBlock == null && 
+                DynamicParamBlock == null && 
+                EndBlock != null)
+            {
+                return EndBlock.GetBody();
+            } 
+
+                AppendNamedBlock(result, BeginBlock, "Begin");
+                AppendNamedBlock(result, ProcessBlock, "Process");
+                AppendNamedBlock(result, EndBlock, "End");
+                AppendNamedBlock(result, DynamicParamBlock, "DynamicParam");
+         
+
+
 
             return result.ToString();
         }

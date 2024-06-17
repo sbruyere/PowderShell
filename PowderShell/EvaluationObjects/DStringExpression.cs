@@ -36,7 +36,8 @@ namespace PowderShell.EvaluationObjects
             //    Options.LargeStringAllocationObserver.LargeStringAllocated.Add(var.Replace("\"\"","\""));
             //}
 
-            return var;
+            //return var;
+            return "\"" + var + "\"";
         }
 
         internal override SymbolicExpression GetSymExp()

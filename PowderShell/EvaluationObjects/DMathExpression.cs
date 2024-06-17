@@ -15,10 +15,12 @@ namespace PowderShell
         public SymbolicExpression MathObject { get; set; } = 0;
         public abstract object GetValueObject();
 
+
         public static bool IsNumericType(object o)
         {
             switch (Type.GetTypeCode(o.GetType()))
             {
+                case TypeCode.Char:
                 case TypeCode.Byte:
                 case TypeCode.SByte:
                 case TypeCode.UInt16:
@@ -76,7 +78,7 @@ namespace PowderShell
                 case TypeCode.Single: return new DMathExpression<Single>((Single)o);
                 case TypeCode.Boolean: return new DBoolExpression((Boolean)o);
                 case TypeCode.DateTime: return new DDateTimeExpression((DateTime)o);
-                case TypeCode.Char: return new DMathExpression<Char>((Char)o);
+                case TypeCode.Char: return new DCharExpression((Char)o);
                 default:
                     return null;
             }

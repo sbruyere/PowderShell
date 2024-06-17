@@ -22,6 +22,19 @@ namespace PowderShell
         {
             operator_n = FormatOperator(operator_n);
 
+            if (operator_n == "-join")
+            {
+                if (leftExp is DEnumerableExpression)
+                {
+                    var enumExp = (DEnumerableExpression)leftExp;
+                    if (enumExp.Elements.All(e => e.IsValuable))
+                    {
+                        char[] resultEnum = enumExp.Elements.Select(v => (char)(byte)(v.GetSymExp().RealNumberValue)).ToArray();
+                        return new DSimpleStringExpression(new string(resultEnum), System.Text.Encoding.Unicode);
+                        (0).ToString();
+                    }
+                }
+            }
 
             if (operator_n == "&")
             {

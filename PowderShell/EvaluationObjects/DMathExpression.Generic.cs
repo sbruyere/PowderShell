@@ -1,5 +1,6 @@
 ﻿
 using MathNet.Symbolics;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System;
 using System.Collections.Generic;
 using System.Linq.Expressions;
@@ -22,7 +23,14 @@ namespace PowderShell
         {
             if (IsNumericType(value))
             {
-                MathObject = Convert.ToDouble(value);
+                if (value is Char)
+                {
+                    MathObject = Convert.ToDouble((byte)Convert.ToChar(value));
+                }
+                else
+                {
+                    MathObject = Convert.ToDouble(value);
+                }
                 return;
             }
         }
@@ -49,9 +57,9 @@ namespace PowderShell
 
         public override string ToExpressionString()
         {
-            if (MathObject.Expression.IsNumber)
-            {
-                return MathObject.RealNumberValue.ToString();
+            if (IsValuable)
+            { 
+                return GetRealValue().ToString();
             }
 
             return MathObject.ToString();

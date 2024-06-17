@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using PowderShell;
+using System.ComponentModel;
 
 namespace PowderShell.EvaluationObjects
 {

@@ -26,12 +26,12 @@ namespace PowderShell.EvaluationObjects
         public override string ToExpressionString()
         {
 
-            if (IsValuable)
-            {
-                return ToValueString();
-            }
-            else
-            {
+            //if (IsValuable)
+            //{
+            //    return ToValueString();
+            //}
+            //else
+            //{
                 List<string> stringResult = new List<string>();
                 foreach (var v in ConcatExpressions)
                 {
@@ -41,7 +41,7 @@ namespace PowderShell.EvaluationObjects
                     //}
                 }
                 return string.Join(" & ", stringResult);
-            }
+            //}
         }
 
         internal override SymbolicExpression GetSymExp()
@@ -58,7 +58,7 @@ namespace PowderShell.EvaluationObjects
         {
             if (expression is DComplexStringExpression)
             {
-                foreach(var v in ((DComplexStringExpression)expression).ConcatExpressions)
+                foreach (var v in ((DComplexStringExpression)expression).ConcatExpressions)
                 {
                     Concat(v);
                 }
@@ -77,11 +77,14 @@ namespace PowderShell.EvaluationObjects
 
             var curRightExp = ConcatExpressions.LastOrDefault();
 
-            if (curRightExp is DSimpleStringExpression && expression.IsValuable)
+            string rightExpStr = GetStringFromStringExpression(curRightExp);
+            string expStr = GetStringFromStringExpression(expression);
+
+            if ((curRightExp is DSimpleStringExpression || curRightExp is DCharExpression) && expression.IsValuable)
             {
                 //var options = (curRightExp as DSimpleStringExpression).Options;
 
-                ConcatExpressions[ConcatExpressions.Count - 1] = new DSimpleStringExpression(curRightExp.ToValueString() + expression.ToValueString(), Encoding.Unicode);
+                ConcatExpressions[ConcatExpressions.Count - 1] = new DSimpleStringExpression(rightExpStr + expStr, Encoding.Unicode);
                 //((DSimpleStringExpression)curRightExp).SetValue(curRightExp.ToValueString() + expression.ToValueString()); <= this was causing side effect
                 return;
             }
@@ -89,6 +92,18 @@ namespace PowderShell.EvaluationObjects
             ConcatExpressions.Add(expression);
         }
 
+        private static string GetStringFromStringExpression(DExpression? curRightExp)
+        {
+            string rightExpStr = null;
+
+            if (curRightExp is DCharExpression)
+                rightExpStr = ((DCharExpression)curRightExp).ToCharValue().ToString();
+
+            if (curRightExp is DSimpleStringExpression)
+                rightExpStr = ((DSimpleStringExpression)curRightExp).ToValueString();
+
+            return rightExpStr;
+        }
 
         public override string ToValueString()
         {
