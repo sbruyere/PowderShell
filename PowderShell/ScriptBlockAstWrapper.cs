@@ -1,10 +1,13 @@
 ﻿using JetBrains.Annotations;
+using Markdig.Helpers;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using PowderShell.EvaluationObjects;
 using System.Collections.ObjectModel;
 using System.Management.Automation;
 using System.Management.Automation.Language;
+using System.Reflection;
 using System.Text;
+using System.Xml.Linq;
 
 namespace PowderShell
 {
@@ -101,15 +104,18 @@ namespace PowderShell
     public class TypeExpressionAstWrapper : ExpressionAstWrapper
     {
         public ITypeName TypeName { get; }
+        public Type? ReflectionType { get; }
 
         public TypeExpressionAstWrapper(TypeExpressionAst ast) : base(ast)
         {
-            TypeName = ast.TypeName;
+            TypeName = ast.TypeName ;
+
+            ReflectionType = TypeName.GetReflectionType();
         }
 
         public override string ToString()
         {
-            return $"[{TypeName.Name}]";
+            return $"[{ReflectionType?.Name ?? TypeName.Name}]";
         }
     }
 
@@ -119,6 +125,7 @@ namespace PowderShell
         public bool NullConditional { get; private set; }
         public CommandElementAstWrapper Member { get; }
         public bool Static { get; }
+        public MemberInfo[] ReflectedMembers { get; }
 
         public MemberExpressionAstWrapper(MemberExpressionAst ast) : base(ast)
         {
@@ -127,7 +134,24 @@ namespace PowderShell
             
 
             if (ast.Member != null)
-                Member = CommandElementAstWrapper.Get( ast.Member);
+                Member = CommandElementAstWrapper.Get(ast.Member);
+
+            if (Expression is TypeExpressionAstWrapper)
+            {
+                var expTypeAst = (Expression as TypeExpressionAstWrapper);
+                var reflectedType = expTypeAst.ReflectionType;
+                if (reflectedType != null)
+                {
+                    if (Member is ConstantExpressionAstWrapper)
+                    {
+                        var expMember = Member as ConstantExpressionAstWrapper;
+                        ReflectedMembers = reflectedType.GetMember(expMember.ToString(), BindingFlags.IgnoreCase | BindingFlags.Static | BindingFlags.GetProperty | BindingFlags.NonPublic | BindingFlags.Public );
+                        //(0).ToString();
+                    }
+                    //reflectedType.GetMember(Member.)
+                    //(0).ToString();
+                }
+            }
 
             NullConditional = ast.NullConditional;
             Static = ast.Static;
@@ -1519,6 +1543,16 @@ namespace PowderShell
             }
         }
 
+        public virtual bool CanEvaluateFromPipeline(CommandBaseAstWrapper arg)
+        {
+            return base.CanEvaluate();
+        }
+
+        public virtual DExpression EvaluateFromPipeline(CommandBaseAstWrapper arg)
+        {
+            return base.Evaluate();
+        }
+
         public override string ToString()
         {
             StringBuilder result = new StringBuilder();
@@ -1545,11 +1579,22 @@ namespace PowderShell
             InvocationOperator = ast.InvocationOperator;
         }
 
+        public override bool CanEvaluateFromPipeline(CommandBaseAstWrapper arg)
+        {
+            return false;
+        }
+
+        public override DExpression EvaluateFromPipeline(CommandBaseAstWrapper arg)
+        {
+            return base.Evaluate();
+        }
 
         public override string ToString()
         {
             StringBuilder result = new StringBuilder();
-            bool simplify = InvocationOperator == TokenKind.Dot && CommandElements.Count > 0 && CommandElements[0].BaseAst is StringConstantExpressionAst;
+            bool simplify = InvocationOperator == TokenKind.Dot 
+                && CommandElements.Count > 0 
+                && CommandElements[0].BaseAst is StringConstantExpressionAst;
 
 
             // Handle invocation operator
@@ -1570,15 +1615,27 @@ namespace PowderShell
             for (int i = 0; i < CommandElements.Count; i++)
             {
                 // Remove quotes from command name for simplification
+                string commandName = string.Empty;
                 if (simplify && i == 0)
                 {
-                    string commandName = CommandElements[i].ToString().Trim('"');
+                    commandName = CommandElements[i].ToString().Trim('"');
                     result.Append(commandName);
                 }
                 else
                 {
-                    result.Append(CommandElements[i].ToString());
+                    commandName = CommandElements[i].ToString();
                 }
+
+                if (i == 0)
+                {
+                    if (Helpers.aliasToCommand.ContainsKey(commandName))
+                    {
+                        commandName = Helpers.aliasToCommand[commandName];
+                    }
+                }
+
+                result.Append(commandName);
+                result.Append(" ");
 
                 if (i < CommandElements.Count - 1)
                 {
@@ -1625,7 +1682,7 @@ namespace PowderShell
 
             StringBuilder result = new StringBuilder();
 
-            result.Append(Expression.ToString());
+            result.Append(expression);
 
             result.Append(base.ToString()); // Append redirections if any
 
@@ -1900,6 +1957,10 @@ namespace PowderShell
             {
                 return Elements[0].CanEvaluate();
             }
+            else if (Elements.Count > 1)
+            {
+                return Elements[1].CanEvaluateFromPipeline(Elements[0]);
+            }
 
             return false;
         }
@@ -1908,7 +1969,14 @@ namespace PowderShell
         {
             if (CanEvaluate())
             {
-                return Elements[0].Evaluate();
+                if (Elements.Count == 1)
+                {
+                    return Elements[0].Evaluate();
+                }
+                else if (Elements.Count > 1)
+                {
+                    return Elements[1].EvaluateFromPipeline(Elements[0]);
+                }
             }
             return base.Evaluate();
         }
