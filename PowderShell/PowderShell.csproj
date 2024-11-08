@@ -4,7 +4,31 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+    <Title>PowderShell</Title>
+    <Authors>Sylvain BRUYERE</Authors>
+    <Company></Company>
+    <Description>PowderShell is a powerful tool designed to deobfuscate PowerShell scripts. It quickly and effectively removes layers of obfuscation, revealing the original code for easier analysis and understanding. Ideal for cybersecurity professionals and malware analysts, PowderShell simplifies the process of dissecting and interpreting complex, obfuscated scripts, saving time and improving accuracy in threat detection and response.</Description>
+    <Copyright>Sylvain Bruyere</Copyright>
+    <PackageProjectUrl>https://github.com/sbruyere/PowderShell</PackageProjectUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <RepositoryUrl>https://github.com/sbruyere/PowderShell</RepositoryUrl>
+    <PackageTags>powershell; deobfuscator</PackageTags>
+    <PackAsTool>False</PackAsTool>
+    <PackageLicenseFile>LICENSE</PackageLicenseFile>
+    <PackageRequireLicenseAcceptance>True</PackageRequireLicenseAcceptance>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\LICENSE">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+    <None Include="..\README.md">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="MathNet.Symbolics" Version="0.25.0" />

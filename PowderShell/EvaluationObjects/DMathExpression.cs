@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Diagnostics.Contracts;
 using System.Reflection;
+using System.Text;
 using MathNet.Symbolics;
 using PowderShell.EvaluationObjects;
 

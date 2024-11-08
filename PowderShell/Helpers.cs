@@ -61,7 +61,8 @@
             { "tee", "Tee-Object" },
             { "type", "Get-Content" },
             { "where", "Where-Object" },
-            { "write", "Write-Output" }
+            { "write", "Write-Output" },
+            { "iex", "Invoke-Expression" }
         };
 
         internal static string IndentLines(int indent, string code)
