@@ -1126,6 +1126,40 @@ namespace PowderShell
 
     }
 
+
+    public class ArrayExpressionAstWrapper : ExpressionAstWrapper
+    {
+        public StatementBlockAstWrapper SubExpression { get; }
+
+        public ArrayExpressionAstWrapper(AstWrapper parent, ArrayExpressionAst ast)
+            : base(parent, ast)
+        {
+            SubExpression = new StatementBlockAstWrapper(this, ast.SubExpression);
+        }
+
+
+        public override bool CanEvaluate()
+        {
+            return SubExpression.CanEvaluate();
+        }
+
+        public override DExpression Evaluate()
+        {
+            if (CanEvaluate())
+                return SubExpression.Evaluate();
+
+            return new DCodeBlock($"@({SubExpression})");
+        }
+
+        public override string Prettify()
+        {
+            if (CanEvaluate())
+                return Evaluate().ToExpressionString();
+
+            return $"@({SubExpression})";
+        }
+    }
+
     public class ParenExpressionAstWrapper : ExpressionAstWrapper
     {
         public PipelineBaseAstWrapper Pipeline { get; }
@@ -1517,7 +1551,7 @@ namespace PowderShell
             if (v is ScriptBlockExpressionAst) return new ScriptBlockExpressionAstWrapper(parent, v as ScriptBlockExpressionAst);
             if (v is ArrayLiteralAst) return new ArrayLiteralAstWrapper(parent, v as ArrayLiteralAst);
             if (v is HashtableAst) return new UnknownExpressionAstWrapper(parent, v);
-            if (v is ArrayExpressionAst) return new UnknownExpressionAstWrapper(parent, v);
+            if (v is ArrayExpressionAst aeast) return new ArrayExpressionAstWrapper(parent, aeast);
             if (v is ParenExpressionAst) return new ParenExpressionAstWrapper(parent, v as ParenExpressionAst);
             if (v is SubExpressionAst) return new SubExpressionAstWrapper(parent, v as SubExpressionAst);
             if (v is UsingExpressionAst) return new UnknownExpressionAstWrapper(parent, v);
@@ -2005,6 +2039,13 @@ namespace PowderShell
                         return true;
                     }
                     break;
+
+                case "Invoke-Expression":
+                    if (dExpression is DSimpleStringExpression || dExpression is DCodeBlock)
+                    {
+                        return true;
+                    }
+                    break;
             }
 
             return false;
@@ -2014,11 +2055,27 @@ namespace PowderShell
         {
             DExpression dExpression = arg.Evaluate();
 
-            if (!Command.Prettify().Contains("$_"))
+            if (Command!= null && !Command.Prettify().Contains("$_"))
                 return new DCodeBlock(Prettify());
 
             switch (CommandOperator)
             {
+                case "Invoke-Expression":
+                    try
+                    {
+                        var newAST = PowderShell.DeObfuscateInWrapper(dExpression.ToValueString());
+
+                        if (!newAST.CanEvaluate())
+                            return new DCodeBlock(Prettify());
+
+                        string expression = newAST.Evaluate().ToExpressionString();
+                        return new DCodeBlock(expression);
+                    } 
+                    catch
+                    {
+
+                    }
+                    break;
                 case "ForEach-Object":
                     if (dExpression is DEnumerableExpression enumerableExpression)
                     {
@@ -2622,6 +2679,23 @@ namespace PowderShell
             Left = ExpressionAstWrapper.Get(this, ast.Left);
             Operator = ast.Operator;
             OperatorSymbol = GetOperatorStrFrom(Operator);
+        }
+
+        public override bool CanEvaluate()
+        {
+            return Right.CanEvaluate() && Operator == TokenKind.Equals;
+        }
+
+        public override DExpression Evaluate()
+        {
+            //var rightValue = Right.Evaluate();
+
+            //if (Operator == TokenKind.Equals)
+            //{
+            //    var leftValue =  Left.Evaluate();
+            //    (0).ToString();
+            //}
+            return new DCodeBlock(Prettify());
         }
 
         public override string Prettify()

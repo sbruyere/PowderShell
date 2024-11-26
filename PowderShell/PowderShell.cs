@@ -17,5 +17,17 @@ namespace PowderShell
 
             return strResult;
         }
+
+        public static AstWrapper DeObfuscateInWrapper(string psCode)
+        {
+            ParseError[] errors = null;
+            Token[] tokens = null;
+
+            psCode = psCode.Replace("$env:cOmspeC", "\"C:\\Windows\\System32\\cmd.exe\"", StringComparison.InvariantCultureIgnoreCase);
+            var ast = Parser.ParseInput(psCode, out tokens, out errors);
+
+            var result = new ScriptBlockAstWrapper(null, ast);
+            return result;
+        }
     }
 }
