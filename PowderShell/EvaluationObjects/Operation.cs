@@ -36,6 +36,18 @@ namespace PowderShell
                 }
             }
 
+            if (operator_n == "-replace")
+            {
+                if (leftExp.IsValuable && rightExp.IsValuable)
+                {
+                    var data = leftExp.ToValueString();
+                    var valueToReplace = rightExp.ToValueString();
+
+                    return new DSimpleStringExpression(data.Replace(valueToReplace, ""), System.Text.Encoding.Unicode);
+
+                }
+            }
+
             if (operator_n == "&")
             {
                 return StrConcat(leftExp, rightExp);
