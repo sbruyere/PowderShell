@@ -723,6 +723,55 @@ namespace PowderShell
         }
 
     }
+    public class BreakStatementAstWrapper : StatementAstWrapper
+    {
+
+        public BreakStatementAstWrapper(AstWrapper parent, BreakStatementAst ast)
+            : base(parent, ast)
+        {
+            if (ast.Label != null)
+                Label = ExpressionAstWrapper.Get(parent, ast.Label);
+        }
+
+        public ExpressionAstWrapper Label { get; }
+
+        public override string Prettify()
+        {
+            if (Label != null)
+            {
+                return $"break {Label.Prettify()}";
+            }
+            else
+            {
+                return "break";
+            }
+        }
+    }
+    public class ExitStatementAstWrapper : StatementAstWrapper
+    {
+
+        public ExitStatementAstWrapper(AstWrapper parent, ExitStatementAst ast)
+            : base(parent, ast)
+        {
+            if (ast.Pipeline != null)
+                Pipeline = PipelineBaseAstWrapper.Get(parent, ast.Pipeline);
+        }
+
+        public PipelineBaseAstWrapper Pipeline { get; }
+
+
+        public override string Prettify()
+        {
+            if (Pipeline != null)
+            {
+                return $"exit {Pipeline.Prettify()}";
+            }
+            else
+            {
+                return "exit";
+            }
+        }
+    }
 
     public class ContinueStatementAstWrapper : StatementAstWrapper
     {
@@ -749,6 +798,30 @@ namespace PowderShell
         }
     }
 
+    public class ReturnStatementAstWrapper : StatementAstWrapper
+    {
+
+        public ReturnStatementAstWrapper(AstWrapper parent, ReturnStatementAst ast)
+            : base(parent, ast)
+        {
+            if (ast.Pipeline != null)
+                Pipeline = PipelineBaseAstWrapper.Get(parent, ast.Pipeline);
+        }
+
+        public PipelineBaseAstWrapper Pipeline { get; }
+
+        public override string Prettify()
+        {
+            if (Pipeline != null)
+            {
+                return $"return {Pipeline.Prettify()}";
+            }
+            else
+            {
+                return "return";
+            }
+        }
+    }
     public class ThrowStatementAstWrapper : StatementAstWrapper
     {
         public bool IsRethrow { get; }
@@ -783,6 +856,8 @@ namespace PowderShell
             : base(parent, ast)
         {
             Initializer = PipelineBaseAstWrapper.Get(this, ast.Initializer);
+
+            if (ast.Iterator != null)
             Iterator = PipelineBaseAstWrapper.Get(this, ast.Iterator);
         }
 
@@ -989,8 +1064,41 @@ namespace PowderShell
 
         public override string Prettify()
         {
-            return NotImplementedPrettify();
+            var builder = new StringBuilder();
+
+            // Ajouter l'expression du switch
+            if (Condition != null)
+            {
+                builder.AppendLine($"switch ({Condition.Prettify()})");
+            }
+            else
+            {
+                builder.AppendLine("switch");
+            }
+            builder.AppendLine("{");
+
+            // Ajouter les clauses du switch
+            foreach (var clause in Clauses)
+            {
+                var condition = clause.Item1.Prettify();
+                var statements = clause.Item2.Prettify();
+                builder.AppendLine($"    case {condition}:");
+                builder.AppendLine(statements);
+                builder.AppendLine("        break;");
+            }
+
+            // Ajouter le bloc default, s'il existe
+            if (Default?.Statements != null && Default.Statements.Any())
+            {
+                builder.AppendLine("    default:");
+                builder.AppendLine(Default.Prettify());
+                builder.AppendLine("        break;");
+            }
+
+            builder.AppendLine("}");
+            return builder.ToString();
         }
+
 
     }
 
@@ -1005,7 +1113,9 @@ namespace PowderShell
             : base(parent,ast)
         {
             Label = ast.Label;
-            Condition = PipelineBaseAstWrapper.Get(this, ast.Condition);
+
+            if (ast.Condition != null)
+                Condition = PipelineBaseAstWrapper.Get(this, ast.Condition);
         }
 
         public static LabeledStatementAstWrapper Get(AstWrapper parent, LabeledStatementAst ast)
@@ -2509,7 +2619,7 @@ namespace PowderShell
             return Prettify();
         }
 
-        private string Prettify()
+        public override string Prettify()
         {
             StringBuilder result = new StringBuilder();
 
@@ -2601,7 +2711,7 @@ namespace PowderShell
             }
             else if (ast is BreakStatementAst)
             {
-                return new StatementAstWrapper<BreakStatementAst>(parent, ast);
+                return new BreakStatementAstWrapper(parent, ast as BreakStatementAst);
             }
             else if (ast is ContinueStatementAst)
             {
@@ -2609,11 +2719,11 @@ namespace PowderShell
             }
             else if (ast is ReturnStatementAst)
             {
-                return new StatementAstWrapper<ReturnStatementAst>(parent, ast);
+                return new ReturnStatementAstWrapper(parent, ast as ReturnStatementAst);
             }
             else if (ast is ExitStatementAst)
             {
-                return new StatementAstWrapper<ExitStatementAst>(parent, ast);
+                return new ExitStatementAstWrapper(parent, ast as ExitStatementAst);
             }
             else if (ast is CommandBaseAst)
             {
@@ -2726,6 +2836,10 @@ namespace PowderShell
             {
                 return ChainableAstWrapper.Get(parent, ast as ChainableAst);
             }
+            //else if (ast is PipelineAst) // PipelineAst is ChainableAST
+            //{
+            //    return PipelineAstWrapper.Get(parent, ast as PipelineAst);
+            //}
             else
             {
                 return new PipelineBaseAstWrapper(parent, ast);
